@@ -14,9 +14,13 @@ import geopy.distance
 
 class Paths:
     def __init__(self, figures, data_save,data_load):
-    self.figures = figures
-    self.data_save = data_save
-    self.data_load = data_load
+        self.figures = figures
+        self.data_save = data_save
+        self.data_load = data_load
+
+def path_file_reader(path_class,file):
+    df = pd.read_csv(path_class.data_load + file)
+    return df
 
 start_time = time.time()
 
@@ -24,13 +28,17 @@ start_time = time.time()
 def main():
 
     #work comp class
-    work_paths = Paths('Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/','Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/','Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/')
+    work_paths = Paths('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/','Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/','Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/')
 
     #personal comp paths
     personal_paths = Paths('/Users/juliandann/Documents/LANL/qgis/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
 
     above_topo = 'all_coor_slope_aspect_curvature.csv'
 
+    df = path_file_reader(work_paths,above_topo)
+
+
+    alt_above_topo_comp(df,work_paths)
 
 
     #uncomment for filepaths on work computer
@@ -104,7 +112,7 @@ def main():
     #df1 = pd.read_csv(td_per_pixel,sep=',')
     #td_comparison(df1,'above_Index','Thaw_Depth_mean','above_alt','above_alt_uncertainty','Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/ALT/')
     #df1 = pd.read_csv(VWC_data,sep=',')
-    df2 = pd.read_csv(all_above_vwc)
+    #df2 = pd.read_csv(all_above_vwc)
     #df = pd.read_csv(closest_above_vwc,sep=',')
 
     #compare_above_vs_hydrosense(df,['avg_6','avg_12','avg_20'],['above_engstrom_0.06','above_engstrom_0.12','above_engstrom_0.2'],xerr=['std_6','std_12','std_20'],xlabel='In-Situ Volumetric Water Content (%)',ylabel='ABoVE VWC (Engstrom Calibration) (%)',title=' In-Situ Soil Moisture vs. Engstrom ABoVE SAR Soil Moisture',save_name = 'Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/2017_engstrom_vs_above.png')
@@ -134,7 +142,7 @@ def main():
     #landcover_boxplots(df2,'Ecosystem_LU','NVC_CLASS','lbc_6_mean','lbc_6_std','lbc_Counts')
     #boxplots_macrotopology_comparison_plots(df2)
 
-    alt_above_topo_comp(df2)
+
     #df1 = pd.read_csv(closest_dist)
     #average_SM_at_pixel(df1,'above_Index',savename='Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/above_vs_hydro/per_pixel_2017_aug_engstrom.png')
     #linear_regression_main(df1,'above_Index',savename='Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/above_vs_hydro/per_pixel_2017_aug_regression_depthsonly_TL.png')

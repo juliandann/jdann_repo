@@ -1050,23 +1050,28 @@ def boxplots_macrotopology_vwc_plots(df):
     fig,ax = plt.subplots(1,3,figsize=(20,10))
     ax = ax.flatten()
 
-def alt_above_topo_comp(df):
+def alt_above_topo_comp(df,paths):
     slope = 'Slope'
     curvature = 'curvature'
     aspect = 'aspect'
+    sunfactor = 'Sun_Factor'
+
+    #sunfactor calculating from Min's email
+    df = sunfactor_func(df,aspect,sunfactor)
 
     #make curvature -1 -> 1
     df[curvature] = df[curvature]/100.0
     slope_bins = np.arange(0,95,5)
     aspect_bins = np.arange(0,390,30)
     curvature_bins = np. arange(-1,1,0.1)
+    sunfactor_bins = np.arange(-1,1,0.1)
 
     #set up for loop lists
-    bins = [slope_bins,aspect_bins,curvature_bins]
-    topo_name = [slope,aspect,curvature]
+    bins = [slope_bins,aspect_bins,curvature_bins,sunfactor_bins]
+    topo_name = [slope,aspect,curvature,sunfactor]
 
 
-    fig,ax = plt.subplots(1,3,figsize=(20,10))
+    fig,ax = plt.subplots(1,4,figsize=(25,10))
     ax = ax.flatten()
     #cycle through topo name
     for i in range(0,len(bins)):
@@ -1081,4 +1086,5 @@ def alt_above_topo_comp(df):
         ax[i].set_xlabel(topo_name[i].capitalize()+' Range (deg)',fontsize=18)
         ax[i].set_ylim(0,df['alt'].max()+(df['alt'].max()/10.0))
         ax[i].set_ylabel('ALT (m)',fontsize=18 )
-    plt.savefig('Z:/AKSeward/')
+    plt.savefig(paths.figures +'ALT/'+ 'alt_vs_macro_topo.png',dpi = 500)
+    plt.close
