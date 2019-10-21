@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-import geopy.distance
-import xarray as xr
+#import geopy.distance
+#import xarray as xr
 import time
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
 import matplotlib
 import matplotlib.dates as mdates
-
+import pdb
 
 
 def dist(lat1, long1, lat2, long2):
@@ -916,7 +916,7 @@ def linear_regression_main(df,pixel_index,savename='test.png'):
 def sunfactor_func(df,aspect,sunfactor):
     df[sunfactor] = 0.5*(np.cos((df[aspect]-40.0)/360.*2.*np.pi)-np.sin((df[aspect]-40.)/360.*2.*np.pi))
     return df
-def boxplots_macrotopology_vwc_plots(df):
+def boxplots_macrotopology_vwc_plots(df,path):
     """Function that makes boxplots 3x1 for each lbc depth against aspect,slope,sunfactor, and curvature.
 
     Parameters
@@ -933,13 +933,15 @@ def boxplots_macrotopology_vwc_plots(df):
 
     #column names for easy changing
     aspect = 'aspect'
-    slope = 'Slope'
+    slope = 'slope'
     sunfactor = 'sunfactor'
     curve = 'curvature'
+    ndvi = 'NDVI_30m'
+    fa = 'fa'
     pix_index = 'Index'
-    six_cm = 'lbc_0.06'
-    twelve_cm = 'lbc_0.12'
-    twenty_cm = 'lbc_0.2'
+    six_cm = 'lbc_0.06_aug'
+    twelve_cm = 'lbc_0.12_aug'
+    twenty_cm = 'lbc_0.2_aug'
     h = 'h'
     h_err = 'h_uncertainty'
     alt = 'alt'
@@ -951,20 +953,30 @@ def boxplots_macrotopology_vwc_plots(df):
 
     slope_bins = np.arange(0,95,5)
     slope_names= []
-    aspect_names= []
-    sunfactor_names = []
-    aspect_bins = np.arange(0,390,30)
     list_slope = []
+
+    aspect_names= []
+    aspect_bins = np.arange(0,390,30)
     list_aspect = []
+
+    sunfactor_names = []
     list_sunfactor = []
     sunfactor_bins = np.arange(-0.8,0.9,0.1)
+
+    ndvi_bins = np.arange(-1,1,0.2)
+    list_ndvi = []
+    ndvi_names = []
+
+    fa_bins =np.arange(0,25000,3000)
+    list_fa = []
+    fa_names = []
 
     curv_bins = np.arange(-1.0,1.1,0.1)
     list_curv =[]
     curv_names = []
 
-    fig,ax = plt.subplots(1,3,figsize=(20,10))
-    ax = ax.flatten()
+
+
     #separate pandas column into value 0-5 etc through slope
     for i in range(0,len(slope_bins)-1):
         list_slope.append( df[((df[slope] > float(slope_bins[i])) & (df[slope] <= float(slope_bins[i+1])))])
@@ -982,18 +994,34 @@ def boxplots_macrotopology_vwc_plots(df):
         list_curv.append( df[((df[curve] > float(curv_bins[i])) & (df[curve] <= float(curv_bins[i+1])))])
         curv_names.append(str(round(curv_bins[i],2))+' - '+str(round(curv_bins[i+1],2)))
 
+    for i in range(0,len(fa_bins)-1):
+        list_fa.append( df[((df[fa] > float(fa_bins[i])) & (df[fa] <= float(fa_bins[i+1])))])
+        fa_names.append(str(round(fa_bins[i],2))+' - '+str(round(fa_bins[i+1],2)))
+
+    for i in range(0,len(ndvi_bins)-1):
+        list_ndvi.append( df[((df[ndvi] > float(ndvi_bins[i])) & (df[ndvi] <= float(ndvi_bins[i+1])))])
+        ndvi_names.append(str(round(ndvi_bins[i],2))+' - '+str(round(ndvi_bins[i+1],2)))
+
+
     #slope
+    fig,ax = plt.subplots(1,3,figsize=(20,10))
+    ax = ax.flatten()
+
     for j in range(0,len(vwc_depth)):
         for i in range(0,len(slope_bins)-1):
+            print(j,i)
+            print(list_slope[i][slope].values)
             ax[j].boxplot(list_slope[i][vwc_depth[j]].values,positions=[i],widths=0.6)
+            if i == 2:
+                break
         ax[j].set_title('Slope vs. ' +str(vwc_depth[j]))
         ax[j].set_xticklabels(slope_names,rotation=45, horizontalalignment='right')
         ax[j].set_xlabel('Slope Range (deg)',fontsize=18)
         ax[j].set_ylim(0,1)
         ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
 
-    plt.savefig('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/ABoVE_vs_Macrotopology/slope.png',dpi=500)
-    plt.close()
+    #plt.savefig(path.figures+'slope.png',dpi=500)
+    plt.show()
 
     fig,ax = plt.subplots(1,3,figsize=(20,10))
     ax = ax.flatten()
@@ -1009,7 +1037,7 @@ def boxplots_macrotopology_vwc_plots(df):
         ax[k].set_ylim(0,1.0)
         ax[k].set_ylabel('VWC (%/100)',fontsize=18 )
         m=m+1
-    plt.savefig('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/ABoVE_vs_Macrotopology/aspect.png',dpi=500)
+    plt.savefig(path.figures+'aspect.png',dpi=500)
     plt.close()
 
 
@@ -1028,7 +1056,7 @@ def boxplots_macrotopology_vwc_plots(df):
         ax[l].set_xticklabels(sunfactor_names,rotation=45, horizontalalignment='right')
         n=n+1
 
-    plt.savefig('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/ABoVE_vs_Macrotopology/sunfactor.png',dpi=500)
+    plt.savefig(path.figures+'sunfactor.png',dpi=500)
     plt.close()
     #plt.show()
 
@@ -1044,11 +1072,38 @@ def boxplots_macrotopology_vwc_plots(df):
         ax[j].set_ylim(0,1)
         ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
 
-    plt.savefig('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/ABoVE_vs_Macrotopology/curv.png',dpi=500)
+    plt.savefig(path.figures+'curv.png',dpi=500)
     plt.close()
 
     fig,ax = plt.subplots(1,3,figsize=(20,10))
     ax = ax.flatten()
+    #curvature
+    for j in range(0,len(vwc_depth)):
+        for i in range(0,len(ndvi_bins)-1):
+            ax[j].boxplot(list_ndvi[i][vwc_depth[j]].values,positions=[i],widths=0.6)
+        ax[j].set_title('NDVI vs. ' +str(vwc_depth[j]))
+        ax[j].set_xticklabels(ndvi_names,rotation=45, horizontalalignment='right')
+        ax[j].set_xlabel('NDVI Range',fontsize=18)
+        ax[j].set_ylim(0,1)
+        ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
+
+    plt.savefig(path.figures+'ndvi.png',dpi=500)
+    plt.close()
+
+    fig,ax = plt.subplots(1,3,figsize=(20,10))
+    ax = ax.flatten()
+    #curvature
+    for j in range(0,len(vwc_depth)):
+        for i in range(0,len(fa_bins)-1):
+            ax[j].boxplot(list_fa[i][vwc_depth[j]].values,positions=[i],widths=0.6)
+        ax[j].set_title('Flow Accumulation vs. ' +str(vwc_depth[j]))
+        ax[j].set_xticklabels(fa_names,rotation=45, horizontalalignment='right')
+        ax[j].set_xlabel('Flow Accumulation Range',fontsize=18)
+        ax[j].set_ylim(0,1)
+        ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
+
+    plt.savefig(path.figures+'fa.png',dpi=500)
+    plt.close()
 
 def alt_above_topo_comp(df,paths):
     slope = 'Slope'

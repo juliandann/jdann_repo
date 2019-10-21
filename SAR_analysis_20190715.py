@@ -3,14 +3,14 @@ import pandas as pd
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-import xarray as xr
+#import xarray as xr
 import time
 from matplotlib.markers import MarkerStyle
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from SAR_gen_functions import *
 import glob
-import geopy.distance
+#import geopy.distance
 
 class Paths:
     def __init__(self, figures, data_save,data_load):
@@ -31,14 +31,14 @@ def main():
     work_paths = Paths('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/','Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/','Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/')
 
     #personal comp paths
-    personal_paths = Paths('/Users/juliandann/Documents/LANL/qgis/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
+    personal_paths = Paths('/Users/juliandann/Documents/LANL/SAR_DATA_AND_Programs/jdann_repo/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
 
-    above_topo = 'all_coor_slope_aspect_curvature.csv'
+    above_all = 'all_coor_w_topo_aug_oct_vegtype_NDVI_fa.csv'
 
-    df = path_file_reader(work_paths,above_topo)
+    df = path_file_reader(personal_paths,above_all)
+    boxplots_macrotopology_vwc_plots(df,personal_paths)
 
-
-    alt_above_topo_comp(df,work_paths)
+    #alt_above_topo_comp(df,work_paths)
 
 
     #uncomment for filepaths on work computer
