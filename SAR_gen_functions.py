@@ -12,7 +12,14 @@ from sklearn.linear_model import LinearRegression
 import matplotlib
 import matplotlib.dates as mdates
 import pdb
+from scipy.optimize import curve_fit
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
+def powspace(start, stop, power, num):
+    start = np.power(start, 1/float(power))
+    stop = np.power(stop, 1/float(power))
+    return np.power( np.linspace(start, stop, num=num), power)
 
 def dist(lat1, long1, lat2, long2):
     """Planar geometric distance function
@@ -949,7 +956,6 @@ def boxplots_macrotopology_vwc_plots(df,path):
     vwc_depth = [six_cm,twelve_cm,twenty_cm]
 
     df = sunfactor_func(df,aspect,sunfactor)
-    df[curve] = df[curve]/ 100.0
 
     slope_bins = np.arange(0,95,5)
     slope_names= []
@@ -963,11 +969,11 @@ def boxplots_macrotopology_vwc_plots(df,path):
     list_sunfactor = []
     sunfactor_bins = np.arange(-0.8,0.9,0.1)
 
-    ndvi_bins = np.arange(-1,1,0.2)
+    ndvi_bins = np.arange(-0.2,1,0.05)
     list_ndvi = []
     ndvi_names = []
 
-    fa_bins =np.arange(0,25000,3000)
+    fa_bins =powspace(0,25000,4,10)
     list_fa = []
     fa_names = []
 
@@ -1009,19 +1015,15 @@ def boxplots_macrotopology_vwc_plots(df,path):
 
     for j in range(0,len(vwc_depth)):
         for i in range(0,len(slope_bins)-1):
-            print(j,i)
-            print(list_slope[i][slope].values)
             ax[j].boxplot(list_slope[i][vwc_depth[j]].values,positions=[i],widths=0.6)
-            if i == 2:
-                break
         ax[j].set_title('Slope vs. ' +str(vwc_depth[j]))
         ax[j].set_xticklabels(slope_names,rotation=45, horizontalalignment='right')
         ax[j].set_xlabel('Slope Range (deg)',fontsize=18)
         ax[j].set_ylim(0,1)
         ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
 
-    #plt.savefig(path.figures+'slope.png',dpi=500)
-    plt.show()
+    plt.savefig(path.figures+'ABoVE_vs_Macrotopology/slope.png',dpi=500)
+    #plt.show()
 
     fig,ax = plt.subplots(1,3,figsize=(20,10))
     ax = ax.flatten()
@@ -1037,7 +1039,7 @@ def boxplots_macrotopology_vwc_plots(df,path):
         ax[k].set_ylim(0,1.0)
         ax[k].set_ylabel('VWC (%/100)',fontsize=18 )
         m=m+1
-    plt.savefig(path.figures+'aspect.png',dpi=500)
+    plt.savefig(path.figures+'ABoVE_vs_Macrotopology/aspect.png',dpi=500)
     plt.close()
 
 
@@ -1056,7 +1058,7 @@ def boxplots_macrotopology_vwc_plots(df,path):
         ax[l].set_xticklabels(sunfactor_names,rotation=45, horizontalalignment='right')
         n=n+1
 
-    plt.savefig(path.figures+'sunfactor.png',dpi=500)
+    plt.savefig(path.figures+'ABoVE_vs_Macrotopology/sunfactor.png',dpi=500)
     plt.close()
     #plt.show()
 
@@ -1072,7 +1074,7 @@ def boxplots_macrotopology_vwc_plots(df,path):
         ax[j].set_ylim(0,1)
         ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
 
-    plt.savefig(path.figures+'curv.png',dpi=500)
+    plt.savefig(path.figures+'ABoVE_vs_Macrotopology/curv.png',dpi=500)
     plt.close()
 
     fig,ax = plt.subplots(1,3,figsize=(20,10))
@@ -1087,7 +1089,7 @@ def boxplots_macrotopology_vwc_plots(df,path):
         ax[j].set_ylim(0,1)
         ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
 
-    plt.savefig(path.figures+'ndvi.png',dpi=500)
+    plt.savefig(path.figures+'ABoVE_vs_Macrotopology/ndvi.png',dpi=500)
     plt.close()
 
     fig,ax = plt.subplots(1,3,figsize=(20,10))
@@ -1102,7 +1104,7 @@ def boxplots_macrotopology_vwc_plots(df,path):
         ax[j].set_ylim(0,1)
         ax[j].set_ylabel('VWC (%/100)',fontsize=18 )
 
-    plt.savefig(path.figures+'fa.png',dpi=500)
+    plt.savefig(path.figures+'ABoVE_vs_Macrotopology/fa.png',dpi=500)
     plt.close()
 
 def alt_above_topo_comp(df,paths):
@@ -1114,8 +1116,6 @@ def alt_above_topo_comp(df,paths):
     #sunfactor calculating from Min's email
     df = sunfactor_func(df,aspect,sunfactor)
 
-    #make curvature -1 -> 1
-    df[curvature] = df[curvature]/100.0
     slope_bins = np.arange(0,95,5)
     aspect_bins = np.arange(0,390,30)
     curvature_bins = np. arange(-1,1,0.1)
@@ -1143,3 +1143,144 @@ def alt_above_topo_comp(df,paths):
         ax[i].set_ylabel('ALT (m)',fontsize=18 )
     plt.savefig(paths.figures +'ALT/'+ 'alt_vs_macro_topo.png',dpi = 500)
     plt.close
+
+def r_square(x,y,ind,null_value):
+    #combine x and y into same dataframe
+    df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
+    #get rid of null value rows (like perfectly flat surface where the DEM has no values)
+    flat = np.where(df['y'] == null_value)
+    df_non_null = df.index.difference(df['Index'].iloc[flat])
+    df = df.loc[df_non_null]
+
+    #fill values with nan value with average
+    y = df.y.fillna(df.y.mean())
+
+    #r-squared analysis
+    x= np.array(df.x.values).reshape((-1, 1))
+    y = y.values
+    model = LinearRegression().fit(x,y)
+    r_sq = model.score(x,y)
+    print('r_sq for linear regression:',r_sq)
+    print('adj. r_sq for linear regression:',1 - (1-model.score(x, y))*(len(y)-1)/(len(y)-x.shape[1]-1))
+    print('intercept:', model.intercept_)
+    print('slope:', model.coef_)
+    xx = np.linspace(df.x.min(),df.x.max(),100)
+    plt.plot(model.intercept_ + model.coef_* xx,'k--')
+
+    plt.scatter(df.x,df.y)
+
+    plt.xlim(df.x.min(),df.x.max())
+    plt.show()
+
+def func(x, a, b, c):
+    return a * np.exp(-b * x) + c
+
+def no_nans(df,cols,null_values):
+    orig_len = len(df)
+    #number of columns
+    num_col = len(cols)
+
+    #drop all rows with nan values
+    df = df.dropna()
+
+    #scroll through columns to get rid of stuff
+    for i in range(0,num_col):
+        df = df.iloc[(np.where(df[cols[i]] != null_values[i]))]
+
+    final_len = len(df)
+    dropped = orig_len - final_len
+    print('Total rows dropped: '+str(dropped))
+
+    return df
+
+def pca_test(df,features,target):
+    #get rid of nans
+    #df = no_nans(df,['slope','curvature','aspect'],[0.0,0.0,0.0])
+
+    print(len(df))
+
+
+    # Separating out the features
+    x = df.loc[:, features].values
+
+    # Separating out the target
+    y = df.loc[:,['lbc_0.06_aug']].values
+
+    # Standardizing the features
+    x = StandardScaler().fit_transform(x)
+
+    pca = PCA(n_components=2)
+    principalComponents = pca.fit_transform(x)
+    principalDf = pd.DataFrame(data = principalComponents, columns = ['principal component 1', 'principal component 2'])
+
+    finalDf = pd.concat([principalDf, df[['lbc_0.06_aug']]], axis = 1)
+
+    #plotting the data
+    fig = plt.figure(figsize = (8,8))
+    ax = fig.add_subplot(1,1,1)
+    ax.set_xlabel('Principal Component 1', fontsize = 15)
+    ax.set_ylabel('Principal Component 2', fontsize = 15)
+    ax.set_title('2 component PCA', fontsize = 20)
+
+    targets = ['Benign', 'Malignant']
+    colors = ['r', 'g']
+
+    #downsampling
+    df_sample = finalDf.sample(frac=0.05)
+    '''
+    #down sample for plotting
+    slope_bins = np.arange(0,95,5)
+    slope_names= []
+    list_slope = []
+
+    #separate pandas column into value 0-5 etc through slope
+    for i in range(0,len(slope_bins)-1):
+        df['slope_cat'] = np.where((df['slope'] > float(slope_bins[i]) & (df['slope'] <= float(slope_bins[i+1])) )
+        df['slope'][((df['slope'] > float(slope_bins[i])) & (df['slope'] <= float(slope_bins[i+1])))]
+        #list_slope.append( df[((df[slope] > float(slope_bins[i])) & (df[slope] <= float(slope_bins[i+1])))])
+        slope_names.append(str(slope_bins[i])+' - '+str(slope_bins[i+1]))
+
+
+
+    for target,color
+    '''
+    ax.scatter(df_sample.loc[:, 'principal component 1'], df_sample.loc[:, 'principal component 2'], c = 'b', s = 50)
+    print(pca.explained_variance_ratio_)
+    plt.show()
+
+def curve_fitting(x,y,ind,null_value):
+
+    #combine x and y into same dataframe
+    df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
+    #get rid of null value rows (like perfectly flat surface where the DEM has no values)
+    flat = np.where(df['y'] == null_value)
+    df_non_null = df.index.difference(df['Index'].iloc[flat])
+    df = df.loc[df_non_null]
+
+    #fill values with nan value with average
+    y = df.y.fillna(df.y.mean())
+
+    #fit
+    popt,pcov = curve_fit(func,df['x'].values,y)
+
+    x_gen = np.linspace(0,1,100)
+
+    df['y'] = y
+
+    df_sample = df.sample(frac=0.05)
+
+    plt.scatter(df_sample['x'],df_sample['y'],label='5% Sample')
+
+    plt.plot(x_gen, func(x_gen, *popt), 'r-',label='fit: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt))
+    plt.legend()
+    plt.xlim(0,1)
+    plt.show()
+
+def point_avg(x,y):
+    #grab the min and max to understand range of data
+    x_min,x_max = x.min(), x.max()
+    y_min,y_max = y.min(), y.max()
+
+    #if x and y are within 1/100th of the x/y range take average of x/y
+    x_dist = (x_max - x_min)/ 100.0
+    y_dist = (y_max - y_min)/100.0

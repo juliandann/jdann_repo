@@ -35,8 +35,8 @@ def main():
 
     above_all = 'all_coor_w_topo_aug_oct_vegtype_NDVI_fa.csv'
 
-    df = path_file_reader(personal_paths,above_all)
-    boxplots_macrotopology_vwc_plots(df,personal_paths)
+    df = path_file_reader(work_paths,above_all)
+    boxplots_macrotopology_vwc_plots(df,work_paths)
 
     #alt_above_topo_comp(df,work_paths)
 
