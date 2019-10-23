@@ -15,6 +15,7 @@ import pdb
 from scipy.optimize import curve_fit
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from matplotlib.pyplot import cm
 
 def powspace(start, stop, power, num):
     start = np.power(start, 1/float(power))
@@ -1193,61 +1194,113 @@ def no_nans(df,cols,null_values):
 
     return df
 
-def pca_test(df,features,target):
+def loadings(pca,features,components):
+
+    loadings = pca.components_
+    results = pd.DataFrame(loadings)
+    results.columns = features
+    results.index=components
+    print(results)
+
+def pca_test(df,features,target,path):
     #get rid of nans
-    #df = no_nans(df,['slope','curvature','aspect'],[0.0,0.0,0.0])
-
-    print(len(df))
-
+    df = no_nans(df,['slope','curvature','aspect'],[0.0,0.0,0.0])
 
     # Separating out the features
     x = df.loc[:, features].values
 
     # Separating out the target
-    y = df.loc[:,['lbc_0.06_aug']].values
+    y = pd.DataFrame(data = df.loc[:,[target]].values,columns =[target])
 
     # Standardizing the features
     x = StandardScaler().fit_transform(x)
 
-    pca = PCA(n_components=2)
+    #determining number of dimensions to use to explain >80% of the variance
+    pca2 = PCA()
+    X_r = pca2.fit(x).transform(x)
+
+
+    fig,ax = plt.subplots(figsize=(8,8))
+    ax.plot(pca2.explained_variance_,linewidth=2.0)
+    ax.set_title('Eigenvalues from Principal Component Analysis',fontsize=18)
+    ax.set_ylabel('Eigenvalue',fontsize=16)
+    ax.set_xlabel('Principal Components',fontsize=16)
+    plt.axhline(y=1, linewidth=1, color='r', alpha=0.5,linestyle='--',label='Kaiser Criterion Threshold')
+    plt.legend(fontsize=16)
+    plt.ylim(0,max(pca2.explained_variance_+0.5))
+    plt.savefig(path.figures+'PCA_analysis/eigenvalues.png',dpi=500)
+    plt.close()
+
+    #grabbing all eigenvalues above 1.0
+    print(np.where(pca2.explained_variance_ >= 1.0))
+
+    #minimizing dimensions
+    pca = PCA(n_components=3)
     principalComponents = pca.fit_transform(x)
-    principalDf = pd.DataFrame(data = principalComponents, columns = ['principal component 1', 'principal component 2'])
+    principalDf = pd.DataFrame(data = principalComponents, columns = ['principal component 1', 'principal component 2','principal component 3'])
 
-    finalDf = pd.concat([principalDf, df[['lbc_0.06_aug']]], axis = 1)
+    finalDf = pd.concat([principalDf, y], axis = 1)
 
-    #plotting the data
-    fig = plt.figure(figsize = (8,8))
-    ax = fig.add_subplot(1,1,1)
-    ax.set_xlabel('Principal Component 1', fontsize = 15)
-    ax.set_ylabel('Principal Component 2', fontsize = 15)
-    ax.set_title('2 component PCA', fontsize = 20)
 
-    targets = ['Benign', 'Malignant']
-    colors = ['r', 'g']
+
 
     #downsampling
     df_sample = finalDf.sample(frac=0.05)
-    '''
+
     #down sample for plotting
-    slope_bins = np.arange(0,95,5)
-    slope_names= []
-    list_slope = []
+    target_bins = np.arange(0.0,0.95,0.1)
+    target_names= []
+    list_target = []
+
+    #create column
+    df_sample[target+'_cat'] =0.0
 
     #separate pandas column into value 0-5 etc through slope
-    for i in range(0,len(slope_bins)-1):
-        df['slope_cat'] = np.where((df['slope'] > float(slope_bins[i]) & (df['slope'] <= float(slope_bins[i+1])) )
-        df['slope'][((df['slope'] > float(slope_bins[i])) & (df['slope'] <= float(slope_bins[i+1])))]
-        #list_slope.append( df[((df[slope] > float(slope_bins[i])) & (df[slope] <= float(slope_bins[i+1])))])
-        slope_names.append(str(slope_bins[i])+' - '+str(slope_bins[i+1]))
+    for i in range(0,len(target_bins)-1):
+        df_sample[target+'_cat'] = np.where((df_sample[target] > float(target_bins[i])) & (df_sample[target] <= float(target_bins[i+1])), str(round(target_bins[i],2))+' - '+str(round(target_bins[i+1],2)),df_sample[target+'_cat'])
+        list_target.append( df_sample[((df_sample[target] > float(target_bins[i])) & (df_sample[target] <= float(target_bins[i+1])))])
+        target_names.append(str(round(target_bins[i],2))+' - '+str(round(target_bins[i+1],2)))
 
 
+    #plotting the data
+    fig,ax = plt.subplots(figsize = (12,8))
+    ax.set_xlabel('Principal Component 1', fontsize = 15)
+    ax.set_ylabel('Principal Component 2', fontsize = 15)
+    ax.set_title('PCA 1 vs. 3', fontsize = 20)
+    alpha_bins =np.linspace(1.0,0.3,len(list_target))
+    for j in range(0,len(list_target)):
+        ax.scatter(list_target[j].loc[:, 'principal component 1'], list_target[j].loc[:, 'principal component 2'], s = 50,label= 'VWC (%/100): '+target_names[j],alpha=alpha_bins[j])
+    print('Explained Variance Ratio: ',pca.explained_variance_ratio_)
+    print('Explained Variance: ',pca.explained_variance_)
+    loadings(pca,features,['principal component 1', 'principal component 2','principal component 3'])
+    plt.text(0.25,0.8,'Explained Variance Ratio: '+str(round(pca.explained_variance_ratio_[0],3))+', '+str(round(pca.explained_variance_ratio_[1],3)),horizontalalignment='left',transform=plt.gcf().transFigure)
+    plt.legend(loc=1)
+    plt.savefig(path.figures+'PCA_analysis/PCA1_vs_PCA2.png',dpi=500)
+    plt.close()
 
-    for target,color
-    '''
-    ax.scatter(df_sample.loc[:, 'principal component 1'], df_sample.loc[:, 'principal component 2'], c = 'b', s = 50)
-    print(pca.explained_variance_ratio_)
-    plt.show()
+    fig,ax = plt.subplots(figsize = (12,8))
+    ax.set_xlabel('Principal Component 2', fontsize = 15)
+    ax.set_ylabel('Principal Component 3', fontsize = 15)
+    ax.set_title('PCA 2 vs. 3', fontsize = 20)
+    for j in range(0,len(list_target)):
+        ax.scatter(list_target[j].loc[:, 'principal component 2'], list_target[j].loc[:, 'principal component 3'], s = 50,label= 'VWC (%/100): '+target_names[j],alpha=alpha_bins[j])
 
+    plt.text(0.25,0.8,'Explained Variance Ratio: '+str(round(pca.explained_variance_ratio_[0],3))+', '+str(round(pca.explained_variance_ratio_[1],3))+', '+str(round(pca.explained_variance_ratio_[2],3)),horizontalalignment='left',transform=plt.gcf().transFigure)
+    plt.legend(loc=1)
+    plt.savefig(path.figures+'PCA_analysis/PCA2_vs_PCA3.png',dpi=500)
+    plt.close()
+
+    fig,ax = plt.subplots(figsize = (12,8))
+    ax.set_xlabel('Principal Component 1', fontsize = 15)
+    ax.set_ylabel('Principal Component 3', fontsize = 15)
+    ax.set_title('PCA 1 vs. 3', fontsize = 20)
+    for j in range(0,len(list_target)):
+        ax.scatter(list_target[j].loc[:, 'principal component 1'], list_target[j].loc[:, 'principal component 3'], s = 50,label= 'VWC (%/100): '+target_names[j],alpha=alpha_bins[j])
+
+    plt.text(0.25,0.8,'Explained Variance Ratio: '+str(round(pca.explained_variance_ratio_[0],3))+', '+str(round(pca.explained_variance_ratio_[1],3))+', '+str(round(pca.explained_variance_ratio_[2],3)),horizontalalignment='left',transform=plt.gcf().transFigure)
+    plt.legend(loc=1)
+    plt.savefig(path.figures+'PCA_analysis/PCA1_vs_PCA3.png',dpi=500)
+    plt.close()
 def curve_fitting(x,y,ind,null_value):
 
     #combine x and y into same dataframe
@@ -1276,6 +1329,8 @@ def curve_fitting(x,y,ind,null_value):
     plt.xlim(0,1)
     plt.show()
 
+def multivariate_linear_correlation(df,features,target,path):
+    
 def point_avg(x,y):
     #grab the min and max to understand range of data
     x_min,x_max = x.min(), x.max()
