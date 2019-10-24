@@ -1145,7 +1145,7 @@ def alt_above_topo_comp(df,paths):
     plt.savefig(paths.figures +'ALT/'+ 'alt_vs_macro_topo.png',dpi = 500)
     plt.close
 
-def r_square(x,y,ind,null_value):
+def r_square_indi(x,y,ind,null_value):
     #combine x and y into same dataframe
     df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
     #get rid of null value rows (like perfectly flat surface where the DEM has no values)
@@ -1172,6 +1172,30 @@ def r_square(x,y,ind,null_value):
 
     plt.xlim(df.x.min(),df.x.max())
     plt.show()
+
+def r_square_append(x,y,ind,null_value,ax):
+    #combine x and y into same dataframe
+    df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
+    #get rid of null value rows (like perfectly flat surface where the DEM has no values)
+    flat = np.where(df['y'] == null_value)
+    df_non_null = df.index.difference(df['Index'].iloc[flat])
+    df = df.loc[df_non_null]
+
+    #fill values with nan value with average
+    y = df.y.fillna(df.y.mean())
+
+    #r-squared analysis
+    x= np.array(df.x.values).reshape((-1, 1))
+    y = y.values
+    model = LinearRegression().fit(x,y)
+    r_sq = model.score(x,y)
+    print('r_sq for linear regression:',r_sq)
+    print('adj. r_sq for linear regression:',1 - (1-model.score(x, y))*(len(y)-1)/(len(y)-x.shape[1]-1))
+    print('intercept:', model.intercept_)
+    print('slope:', model.coef_)
+    xx = np.linspace(df.x.min(),df.x.max(),100)
+    ax.plot(model.intercept_ + model.coef_* xx,'k--')
+    ax.text(0.5,0.5,'R_sq')
 
 def func(x, a, b, c):
     return a * np.exp(-b * x) + c
@@ -1240,9 +1264,6 @@ def pca_test(df,features,target,path):
     principalDf = pd.DataFrame(data = principalComponents, columns = ['principal component 1', 'principal component 2','principal component 3'])
 
     finalDf = pd.concat([principalDf, y], axis = 1)
-
-
-
 
     #downsampling
     df_sample = finalDf.sample(frac=0.05)
@@ -1329,8 +1350,30 @@ def curve_fitting(x,y,ind,null_value):
     plt.xlim(0,1)
     plt.show()
 
-def multivariate_linear_correlation(df,features,target,path):
-    
+def multivariate_linear_correlation(df,features,target,path,fraction):
+
+    #setting the number of columns/rows
+    columns, rows = len(features)+1,len(features)+1
+
+    plotting_x = np.append(features,target)
+    plotting_y = np.append(features,target)
+
+    #create subplots
+    fig,ax = plt.subplots(columns,rows,figsize=(20,20))
+    plt.tight_layout()
+    #take a subset of the data
+    df_sample = df.sample(frac=fraction)
+
+    #scroll through the subplots fitting each with an r^2 this assumes a linear relationship
+    for y in range(0,columns):
+        for x in range(0,rows):
+            print(x,y)
+            ax[y,x].scatter(df_sample[plotting_x[x]],df_sample[plotting_y[y]],alpha=0.1)
+            ax[y,x].set_xlabel(plotting_x[x])
+            ax[y,x].set_ylabel(plotting_y[y])
+            r_square_append()
+
+    plt.show()
 def point_avg(x,y):
     #grab the min and max to understand range of data
     x_min,x_max = x.min(), x.max()
