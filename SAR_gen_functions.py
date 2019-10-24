@@ -16,6 +16,7 @@ from scipy.optimize import curve_fit
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from matplotlib.pyplot import cm
+from scipy import stats
 
 def powspace(start, stop, power, num):
     start = np.power(start, 1/float(power))
@@ -1165,15 +1166,17 @@ def r_square_indi(x,y,ind,null_value):
     print('adj. r_sq for linear regression:',1 - (1-model.score(x, y))*(len(y)-1)/(len(y)-x.shape[1]-1))
     print('intercept:', model.intercept_)
     print('slope:', model.coef_)
+    stat, p = stats.shapiro(df['y'].values)
+    print('W Value: ',stat)
     xx = np.linspace(df.x.min(),df.x.max(),100)
-    plt.plot(model.intercept_ + model.coef_* xx,'k--')
+    plt.plot(xx,model.intercept_ + model.coef_* xx,'k--')
 
     plt.scatter(df.x,df.y)
 
     plt.xlim(df.x.min(),df.x.max())
     plt.show()
 
-def r_square_append(x,y,ind,null_value,ax):
+def r_square_append(x,y,ind,null_value,ax,verbose=False):
     #combine x and y into same dataframe
     df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
     #get rid of null value rows (like perfectly flat surface where the DEM has no values)
@@ -1189,13 +1192,20 @@ def r_square_append(x,y,ind,null_value,ax):
     y = y.values
     model = LinearRegression().fit(x,y)
     r_sq = model.score(x,y)
-    print('r_sq for linear regression:',r_sq)
-    print('adj. r_sq for linear regression:',1 - (1-model.score(x, y))*(len(y)-1)/(len(y)-x.shape[1]-1))
-    print('intercept:', model.intercept_)
-    print('slope:', model.coef_)
+    stat, p = stats.shapiro(df['y'].values)
+    if verbose =='True':
+        print('r_sq for linear regression:',r_sq)
+        print('adj. r_sq for linear regression:',1 - (1-model.score(x, y))*(len(y)-1)/(len(y)-x.shape[1]-1))
+        print('intercept:', model.intercept_)
+        print('slope:', model.coef_)
+        print('W Value: ',stat)
+        print('p Value: ',p)
     xx = np.linspace(df.x.min(),df.x.max(),100)
-    ax.plot(model.intercept_ + model.coef_* xx,'k--')
-    ax.text(0.5,0.5,'R_sq')
+
+    ax.plot(xx,model.intercept_ + (model.coef_* xx),'k--')
+    ax.text(0.05,0.85,r'R $^2$ : '+str(round(r_sq,3)),horizontalalignment='left',transform=ax.transAxes)
+    ax.text(0.95,0.85,'W : '+str(round(stat,3)),horizontalalignment='right',transform=ax.transAxes)
+    ax.set_xlim(df.x.min(),df.x.max())
 
 def func(x, a, b, c):
     return a * np.exp(-b * x) + c
@@ -1350,7 +1360,7 @@ def curve_fitting(x,y,ind,null_value):
     plt.xlim(0,1)
     plt.show()
 
-def multivariate_linear_correlation(df,features,target,path,fraction):
+def multivariate_linear_correlation_matrix(df,features,target,path,fraction):
 
     #setting the number of columns/rows
     columns, rows = len(features)+1,len(features)+1
@@ -1359,8 +1369,9 @@ def multivariate_linear_correlation(df,features,target,path,fraction):
     plotting_y = np.append(features,target)
 
     #create subplots
-    fig,ax = plt.subplots(columns,rows,figsize=(20,20))
-    plt.tight_layout()
+    fig,ax = plt.subplots(columns,rows,figsize=(25,25))
+    #plt.tight_layout()
+
     #take a subset of the data
     df_sample = df.sample(frac=fraction)
 
@@ -1369,11 +1380,18 @@ def multivariate_linear_correlation(df,features,target,path,fraction):
         for x in range(0,rows):
             print(x,y)
             ax[y,x].scatter(df_sample[plotting_x[x]],df_sample[plotting_y[y]],alpha=0.1)
-            ax[y,x].set_xlabel(plotting_x[x])
-            ax[y,x].set_ylabel(plotting_y[y])
-            r_square_append()
+            if y==columns-1:
+                ax[y,x].set_xlabel(plotting_x[x],fontsize=16)
+            if x ==0:
+                ax[y,x].set_ylabel(plotting_y[y],fontsize=16)
+            print(plotting_x[x],plotting_y[y])
+            r_square_append(df[plotting_x[x]],df[plotting_y[y]],df['Index'],0.0,ax[y,x])
 
-    plt.show()
+    plt.savefig(path.figures+'Linear_Regression_Matrix/'+target+'.png',dpi=500)
+    plt.close()
+    plt.clf()
+def multiple_linear_regression():
+    pass
 def point_avg(x,y):
     #grab the min and max to understand range of data
     x_min,x_max = x.min(), x.max()
