@@ -7,8 +7,6 @@ from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-from sklearn.metrics import r2_score
-from sklearn.linear_model import LinearRegression
 import matplotlib
 import matplotlib.dates as mdates
 import pdb
@@ -17,6 +15,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from matplotlib.pyplot import cm
 from scipy import stats
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+
 
 def powspace(start, stop, power, num):
     start = np.power(start, 1/float(power))
@@ -1400,3 +1402,31 @@ def point_avg(x,y):
     #if x and y are within 1/100th of the x/y range take average of x/y
     x_dist = (x_max - x_min)/ 100.0
     y_dist = (y_max - y_min)/100.0
+
+def machine_learning_SM(df,variables,target):
+
+    #separate the variable from the target variable
+    X = df[variables]
+    y = df[[target]]
+
+    #separate test vs. training data for the model
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,random_state=1)
+
+    #initiate a linear regression function
+    reg = LinearRegression()
+
+    #set the model to train on specific variables
+    reg.fit(X_train[variables], y_train)
+    y_predicted = reg.predict(X_test[variables])
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, y_predicted))
+    print('R²: %.2f' % r2_score(y_test, y_predicted))
+
+    #plot the y_predictions vs. measured value
+    fig, ax = plt.subplots()
+    ax.scatter(y_test, y_predicted)
+    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
+    ax.set_xlabel('measured')
+    ax.set_ylabel('predicted')
+    plt.show()
+
+    
