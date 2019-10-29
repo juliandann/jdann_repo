@@ -18,7 +18,14 @@ from scipy import stats
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
-
+from sklearn import linear_model
+import statsmodels.api as sm
+# Import function to automatically create polynomial features!
+from sklearn.preprocessing import PolynomialFeatures
+# Import Linear Regression and a regularized regression function
+from sklearn.linear_model import LassoCV
+# Finally, import function to make a machine learning pipeline
+from sklearn.pipeline import make_pipeline
 
 def powspace(start, stop, power, num):
     start = np.power(start, 1/float(power))
@@ -588,27 +595,57 @@ def engstrom_SM_mv(df,mv1,mv2,z1,depth):
     df[depth_tag] = np.where(df[z1] > depth, df[mv1],(df[mv1] * df[z1] + df[mv2] *(depth - df[z1]))/depth )
     return df
 
-def compare_above_vs_hydrosense(df,x,y,xerr=[],yerr=[],xlabel='',ylabel='',title='',save_name='test.png'):
+def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title='',save_name='test.png'):
     '''This function is meant to take the ABoVE SAR values with discrete measurements at 6,12,20 cm and compare with the hydrosense data'''
 
     #use ggplot
     matplotlib.style.use('ggplot')
 
     #make date into datetime object
-    df['Date'] = pd.to_datetime(df['Date'],errors='coerce')
+    df_hydro['Date'] = pd.to_datetime(df_hydro['TimeStamp'],errors='coerce')
 
     #take only late dates
-    VWC_df_late = df[(df['Date']>pd.Timestamp(2017,7,1))]
+    VWC_df_late = df_hydro[(df_hydro['Date']>pd.Timestamp(2017,7,1))]
 
     symbol =['^','s','o']
     alpha = [1,0.6,0.4,0.2]
 
     #divide each column by 100.0
-    VWC_df_late[x] = VWC_df_late[x]/100.0
-    if len(xerr) > 1:
-        VWC_df_late[xerr] = VWC_df_late[xerr]/100.0
+    VWC_df_late['VWC'] = VWC_df_late['VWC']/100.0
 
     size = [10,10,10]
+    '''
+    six = 'lbc_0.06_aug'
+    twelve = 'lbc_0.12_aug'
+    twenty = 'lbc_0.2_aug'
+    '''
+    six = 'engstrom_0.06'
+    twelve = 'engstrom_0.12'
+    twenty = 'engstrom_0.2'
+
+    depths =[six,twelve,twenty]
+
+
+    #grab SAR plot averages for each depth
+    group_above = df_above.groupby('SAR_Plot')
+    site_avg = []
+    site_std = []
+    site_name = []
+    for key_ab,group_ab in group_above:
+        if key_ab != np.nan:
+            print(key_ab)
+            site_name.append(key_ab)
+            avg_group = []
+            std_group = []
+            for depth in depths:
+                avg_group.append(group_ab[depth].mean())
+                std_group.append(group_ab[depth].std())
+            site_avg.append(avg_group)
+            site_std.append(std_group)
+    site_avg = np.array(site_avg)
+    site_std = np.array(site_std)
+
+    df_ab = pd.DataFrame({'SAR_Plot':site_name,'six':site_avg[:,0],'twelve':site_avg[:,1],'twenty':site_avg[:,2],'six_err':site_std[:,0],'twelve_err':site_std[:,1],'twenty_err':site_std[:,2]})
 
     fig,ax=plt.subplots(figsize=(15,10))
     #colors = {'Teller':'royalblue','Kougarok':'salmon','Council':'seagreen'}
@@ -616,23 +653,41 @@ def compare_above_vs_hydrosense(df,x,y,xerr=[],yerr=[],xlabel='',ylabel='',title
 
     colors = {'Teller':set[2],'Kougarok':set[1],'Council':set[0]}
 
-    grouped =  VWC_df_late.groupby(['site','sar_plot'])
-    for i in range(0,len(y)):
+    grouped =  VWC_df_late.groupby(['Locale','SAR_Plot'])
+    VWC_depth = [6,12,20]
+    x_array = []
+    y_array = []
+    for i in range(0,len(VWC_depth)):
         for key,group in grouped:
-            key = group['site'].iloc[0]
+            key = group['Locale'].iloc[0]
             if key !='Barrow':
-                print(key)
-                print(group[['site','sar_plot']])
+                #print(key)
+                sarplot=group['SAR_Plot'].unique()[0]
+
+                group_depth = group[group['VWC_Measurement_Depth'] == VWC_depth[i]]
 
                 #average groupby
-                x_data = group[x[i]].mean()
-                y_data = group[y[i]].mean()
-                xerr = group[x[i]].std()
-                yerr = group[y[i]].std()
+                x_data = group_depth['VWC'].mean()
+                xerr = group_depth['VWC'].std()
+                y = df_ab[df_ab['SAR_Plot'] == sarplot]
+                if VWC_depth[i] == 6:
+                    y_data = y['six']
+                    yerr = y['six_err']
+                if VWC_depth[i] == 12:
+                    y_data = y['twelve']
+                    yerr = y['twelve_err']
+                if VWC_depth[i] == 20:
+                    y_data = y['twenty']
+                    yerr = y['twenty_err']
 
-                #group.plot(ax=ax,x=x_data,y=y_data,xerr=xerr,yerr=yerr,kind='scatter',s=size[i],color=colors[key],edgecolors='k',linewidths=1.5 ,marker=MarkerStyle(symbol[i]))#,fillstyle=fill_style[i]),edgecolors=edge_colors[i])#,edgecolors=edge_colors[i],linewidths=2)
+                x_array.append(x_data)
+                y_array.append(float(y_data))
                 ax.errorbar(x_data,y_data,xerr=xerr,yerr=yerr,markersize=size[i],color=colors[key],fmt=symbol[i])
                 plt.rcParams['lines.linewidth'] = 0.5
+    print(x_array,'\n',y_array)
+    r2 = r2_score(x_array,y_array)
+    r2_other = r_square_indi(x_array,y_array,np.arange(0,len(x_array)),0.0)
+    plt.text(0.5,0.95,r'R$^2$ 1:1: '+str(round(r2,3))+ r'   R$^2$: '+str(round(r2_other,3)),horizontalalignment='center',fontsize=18)
 
     plt.xlim(0,1)
     plt.ylim(0,1)
@@ -661,13 +716,14 @@ def compare_above_vs_hydrosense(df,x,y,xerr=[],yerr=[],xlabel='',ylabel='',title
     #create 1:1 line
     y =np.linspace(0,1,100)
     x = np.linspace(0,1,100)
-    plt.plot(x,y,ls='--',c='k')
+    #plt.plot(x,y,ls='--',c='k')
     plt.xlabel(xlabel,fontsize=18)
     plt.ylabel(ylabel,fontsize=18)
     plt.title(title,fontsize=22)
-    #plt.savefig(save_name,dpi=500)
-    plt.show()
-    #plt.close()
+    plt.savefig(path.figures+save_name,dpi=500)
+    print(path.figures+save_name)
+    #plt.show()
+    plt.close()
 
 def weather(met_data,title='Temperature and Precipitation at Kougarok (mile 64)'):
 
@@ -1177,7 +1233,7 @@ def r_square_indi(x,y,ind,null_value):
 
     plt.xlim(df.x.min(),df.x.max())
     plt.show()
-
+    return r_sq
 def r_square_append(x,y,ind,null_value,ax,verbose=False):
     #combine x and y into same dataframe
     df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
@@ -1392,18 +1448,8 @@ def multivariate_linear_correlation_matrix(df,features,target,path,fraction):
     plt.savefig(path.figures+'Linear_Regression_Matrix/'+target+'.png',dpi=500)
     plt.close()
     plt.clf()
-def multiple_linear_regression():
-    pass
-def point_avg(x,y):
-    #grab the min and max to understand range of data
-    x_min,x_max = x.min(), x.max()
-    y_min,y_max = y.min(), y.max()
 
-    #if x and y are within 1/100th of the x/y range take average of x/y
-    x_dist = (x_max - x_min)/ 100.0
-    y_dist = (y_max - y_min)/100.0
-
-def machine_learning_SM(df,variables,target):
+def linear_machine_learning_SM(df,variables,target):
 
     #separate the variable from the target variable
     X = df[variables]
@@ -1412,6 +1458,11 @@ def machine_learning_SM(df,variables,target):
     #separate test vs. training data for the model
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,random_state=1)
 
+
+
+
+
+    print('Multiple Linear Regression Model: ')
     #initiate a linear regression function
     reg = LinearRegression()
 
@@ -1421,12 +1472,50 @@ def machine_learning_SM(df,variables,target):
     print("Mean squared error: %.2f" % mean_squared_error(y_test, y_predicted))
     print('R²: %.2f' % r2_score(y_test, y_predicted))
 
-    #plot the y_predictions vs. measured value
-    fig, ax = plt.subplots()
-    ax.scatter(y_test, y_predicted)
-    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
-    ax.set_xlabel('measured')
-    ax.set_ylabel('predicted')
-    plt.show()
 
-    
+    print('OLS Model: ')
+    #try with OLS model too
+    OLS_model = sm.OLS(y_train, X_train[variables]).fit()
+    y_pred2 = OLS_model.predict(X_test[variables])
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, y_pred2))
+    print('R²: %.2f' % r2_score(y_test, y_pred2))
+    print(OLS_model.summary())
+
+    print('Non-Linear regression: ')
+    # Alpha (regularization strength) of LASSO regression
+    lasso_eps = 0.0001
+    lasso_nalpha=20
+    lasso_iter=5000
+    # Min and max degree of polynomials features to consider
+    degree_min = 2
+    degree_max = 8
+
+    #grabbing values
+
+
+    # Make a pipeline model with polynomial transformation and LASSO regression with cross-validation, run it for increasing degree of polynomial (complexity of the model)
+    for degree in range(degree_min,degree_max+1):
+        fig, ax = plt.subplots(figsize=(20,20))
+        model = make_pipeline(PolynomialFeatures(degree, interaction_only=False), LassoCV(eps=lasso_eps,n_alphas=lasso_nalpha,max_iter=lasso_iter,normalize=True,cv=5))
+        model.fit(X_train,y_train)
+        test_pred = np.array(model.predict(X_test))
+        #ax.scatter(y_test,test_pred)
+        #RMSE=np.sqrt(np.sum(np.square(test_pred-y_test.values)))
+        test_score = model.score(X_test,y_test)
+        print(test_score)
+
+    '''
+    #plot the y_predictions vs. measured value
+    fig, ax = plt.subplots(2,1)
+    ax=ax.flatten()
+    ax[0].scatter(y_test, y_predicted)
+    ax[1].scatter(y_test,y_pred2,color='r')
+    ax[0].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
+    ax[1].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
+    ax[0].set_xlabel('measured')
+    ax[0].set_ylabel('predicted')
+    ax[0].set_ylim(0,1.0)
+    ax[1].set_ylim(0,1.0)
+    plt.show()
+    '''
+    plt.show()

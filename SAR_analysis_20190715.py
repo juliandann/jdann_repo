@@ -36,7 +36,7 @@ def main():
     above_all = 'all_coor_w_topo_aug_oct_vegtype_NDVI_fa_ifsar.csv'
 
     df = path_file_reader(work_paths,above_all)
-    pca_test(df,['aspect','slope','curvature',''])
+
 
     #alt_above_topo_comp(df,work_paths)
 
