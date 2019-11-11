@@ -33,7 +33,7 @@ def main():
     #personal comp paths
     personal_paths = Paths('/Users/juliandann/Documents/LANL/SAR_DATA_AND_Programs/jdann_repo/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
 
-    above_all = 'all_coor_w_topo_aug_oct_vegtype_NDVI_fa_ifsar.csv'
+    above_all = 'above_complete.csv'
 
     df = path_file_reader(work_paths,above_all)
 

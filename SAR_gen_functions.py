@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 #import geopy.distance
-#import xarray as xr
+import xarray as xr
 import time
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
@@ -26,6 +26,11 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LassoCV
 # Finally, import function to make a machine learning pipeline
 from sklearn.pipeline import make_pipeline
+
+from os import listdir
+from os.path import isfile, join
+
+from pygam import LinearGAM
 
 def powspace(start, stop, power, num):
     start = np.power(start, 1/float(power))
@@ -1522,3 +1527,63 @@ def linear_machine_learning_SM(df,variables,target):
 
 def above_vs_in_situ_boxplots(above,hydro):
     pass
+
+def comp_landcover(df,land_1,land_2):
+    grouped = df.groupby(land_1)
+
+    fig,ax = plt.subplots(4,4,figsize=(10,10))
+    ax = ax.flatten()
+    nlcd_dic = {'11':'Open Water','12':'Perrenial Ice/Snow','21':'Developed, Open Space','22': 'Developed, Low Intensity','23':'Developed, Medium Intensity','24':'Developed, High Intensity','31':'Barren Land','41':'Deciduous Forest','42':'Evergreen Forest',
+    '43':'Mixed Forest','51':'DwarfShrub','52':'Shrub/Scrub','71':'Grassland/Herbaceous','72':'Sedge/Herbaceous','74':'Moss','81':'Pasture/Hay','82':'Cultivated Crops','90':'Woody Wetlands','95':'Emergent Herbaceous Wetlands'}
+
+    gap_dic = {}
+    i=0
+    for key,group in grouped:
+
+        counts = group[land_2].value_counts()
+        x = counts.index
+
+        y = counts
+        fracy = y/y.sum()
+        ax[i].bar(x,fracy)
+        print(round(key))
+        ax[i].set_title(nlcd_dic[str(round(key))])
+
+        i = i+1
+
+
+    plt.show()
+def gams(df,variables,target):
+    var2 = variables
+
+    var2.append(target)
+    df_all = df[var2].dropna()
+    print(df_all,len(df_all))
+    X = df_all[variables].values
+    y = df_all[target].values
+    print(X,y)
+    gam = LinearGAM(n_splines=10).gridsearch(X, y)
+    print(gam.summary())
+
+def five_year_avg_precip(path):
+    #dfs = [pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame(),pd.DataFrame()]
+    #df_after = []
+
+    #grab files in the path folder
+    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+    print(onlyfiles)
+    df_all = pd.DataFrame()
+    for filepath in onlyfiles:
+        #make dataframe of each file
+        ds = xr.open_dataset(path+filepath)
+        df = ds.to_dataframe()
+
+        #crop to the Seward Peninsula
+        lat_bounds = [64.161307,66.521784]
+        lon_bounds = [-167.208134,-162.098092]
+        df = df[(df['stn_lon'] > lon_bounds[0]) & (df['stn_lon'] < lon_bounds[1])]
+        df = df[(df['stn_lat'] > lat_bounds[0]) & (df['stn_lat'] < lat_bounds[1])]
+
+        print(df)
+        df_all.append(df)
+    return df_all
