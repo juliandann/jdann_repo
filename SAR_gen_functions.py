@@ -29,9 +29,23 @@ from sklearn.pipeline import make_pipeline
 
 from os import listdir
 from os.path import isfile, join
-
 from pygam import LinearGAM
 
+
+class Paths:
+    def __init__(self, figures, data_save,data_load):
+        self.figures = figures
+        self.data_save = data_save
+        self.data_load = data_load
+def path_file_reader(path_class,file):
+    df = pd.read_csv(path_class.data_load + file)
+    return df
+
+#work comp class
+work_paths = Paths('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/','Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/','Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/')
+
+#personal comp paths
+personal_paths = Paths('/Users/juliandann/Documents/LANL/SAR_DATA_AND_Programs/jdann_repo/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
 def powspace(start, stop, power, num):
     start = np.power(start, 1/float(power))
     stop = np.power(stop, 1/float(power))
@@ -1528,7 +1542,10 @@ def linear_machine_learning_SM(df,variables,target):
 def above_vs_in_situ_boxplots(above,hydro):
     pass
 
-def comp_landcover(df,land_1,land_2):
+def comp_landcover(df,land_1,land_2,path,gapland = 'gaplandfire_legend'):
+    #getting gaplandfire table for comparison
+    gapland = path_file_reader(path.data_load,gapland)
+
     grouped = df.groupby(land_1)
 
     fig,ax = plt.subplots(4,4,figsize=(10,10))
@@ -1536,7 +1553,6 @@ def comp_landcover(df,land_1,land_2):
     nlcd_dic = {'11':'Open Water','12':'Perrenial Ice/Snow','21':'Developed, Open Space','22': 'Developed, Low Intensity','23':'Developed, Medium Intensity','24':'Developed, High Intensity','31':'Barren Land','41':'Deciduous Forest','42':'Evergreen Forest',
     '43':'Mixed Forest','51':'DwarfShrub','52':'Shrub/Scrub','71':'Grassland/Herbaceous','72':'Sedge/Herbaceous','74':'Moss','81':'Pasture/Hay','82':'Cultivated Crops','90':'Woody Wetlands','95':'Emergent Herbaceous Wetlands'}
 
-    gap_dic = {}
     i=0
     for key,group in grouped:
 

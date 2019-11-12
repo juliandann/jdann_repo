@@ -12,15 +12,9 @@ from SAR_gen_functions import *
 import glob
 #import geopy.distance
 
-class Paths:
-    def __init__(self, figures, data_save,data_load):
-        self.figures = figures
-        self.data_save = data_save
-        self.data_load = data_load
 
-def path_file_reader(path_class,file):
-    df = pd.read_csv(path_class.data_load + file)
-    return df
+
+
 
 start_time = time.time()
 
@@ -33,10 +27,9 @@ def main():
     #personal comp paths
     personal_paths = Paths('/Users/juliandann/Documents/LANL/SAR_DATA_AND_Programs/jdann_repo/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
 
-    above_all = 'above_complete.csv'
+    above_all = 'above_fully_complete.csv'
 
     df = path_file_reader(work_paths,above_all)
-
 
     #alt_above_topo_comp(df,work_paths)
 
