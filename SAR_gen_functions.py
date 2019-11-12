@@ -1584,6 +1584,7 @@ def five_year_avg_precip(path):
         df = df[(df['stn_lon'] > lon_bounds[0]) & (df['stn_lon'] < lon_bounds[1])]
         df = df[(df['stn_lat'] > lat_bounds[0]) & (df['stn_lat'] < lat_bounds[1])]
 
-        print(df)
-        df_all.append(df)
+        #append to one datframe
+        df_all = df_all.append(df)
+        del df
     return df_all
