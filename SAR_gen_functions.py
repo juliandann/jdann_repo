@@ -1542,9 +1542,10 @@ def linear_machine_learning_SM(df,variables,target):
 def above_vs_in_situ_boxplots(above,hydro):
     pass
 
-def comp_landcover(df,land_1,land_2,path,gapland = 'gaplandfire_legend'):
+def comp_landcover(df,land_1,land_2,path,gapland = 'gaplandfire_legend.csv'):
+    print (path.data_load)
     #getting gaplandfire table for comparison
-    gapland = path_file_reader(path.data_load,gapland)
+    gapland = path_file_reader(path,gapland)
 
     grouped = df.groupby(land_1)
 
@@ -1556,18 +1557,25 @@ def comp_landcover(df,land_1,land_2,path,gapland = 'gaplandfire_legend'):
     i=0
     for key,group in grouped:
 
+        #summing values for each unique gapland value
         counts = group[land_2].value_counts()
-        x = counts.index
 
+        #max values and index
+        max_frac = counts.max()/counts.sum()
+        max_id = counts.idxmax()
+
+        x = counts.index
         y = counts
         fracy = y/y.sum()
         ax[i].bar(x,fracy)
-        print(round(key))
+        print('NLCD: '+ nlcd_dic[str(round(key))])
+        print('Gapland: '+str(max_id)+'  '+str(max_frac))
+
         ax[i].set_title(nlcd_dic[str(round(key))])
 
         i = i+1
 
-
+    return counts
     plt.show()
 def gams(df,variables,target):
     var2 = variables
