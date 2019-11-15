@@ -1543,40 +1543,60 @@ def above_vs_in_situ_boxplots(above,hydro):
     pass
 
 def comp_landcover(df,land_1,land_2,path,gapland = 'gaplandfire_legend.csv'):
-    print (path.data_load)
+
     #getting gaplandfire table for comparison
     gapland = path_file_reader(path,gapland)
 
     grouped = df.groupby(land_1)
 
-    fig,ax = plt.subplots(4,4,figsize=(10,10))
-    ax = ax.flatten()
+    #fig,ax = plt.subplots(4,4,figsize=(10,10))
+    #ax = ax.flatten()
     nlcd_dic = {'11':'Open Water','12':'Perrenial Ice/Snow','21':'Developed, Open Space','22': 'Developed, Low Intensity','23':'Developed, Medium Intensity','24':'Developed, High Intensity','31':'Barren Land','41':'Deciduous Forest','42':'Evergreen Forest',
     '43':'Mixed Forest','51':'DwarfShrub','52':'Shrub/Scrub','71':'Grassland/Herbaceous','72':'Sedge/Herbaceous','74':'Moss','81':'Pasture/Hay','82':'Cultivated Crops','90':'Woody Wetlands','95':'Emergent Herbaceous Wetlands'}
 
     i=0
     for key,group in grouped:
-
+        fig,ax = plt.subplots(figsize=(15,12))
+        #ax = ax.flatten()
         #summing values for each unique gapland value
-        counts = group[land_2].value_counts()
+        counts = group[land_2].value_counts().sort_values(ascending=False)
 
         #max values and index
         max_frac = counts.max()/counts.sum()
         max_id = counts.idxmax()
 
-        x = counts.index
-        y = counts
-        fracy = y/y.sum()
-        ax[i].bar(x,fracy)
         print('NLCD: '+ nlcd_dic[str(round(key))])
-        print('Gapland: '+str(max_id)+'  '+str(max_frac))
+        #print('Gapland: '+str(max_id)+'  '+str(max_frac))
 
+        counts = counts.to_frame()
+        counts['above_h_value']=counts.index
+        merged = pd.merge(counts,gapland,on='above_h_value')
+        merged=merged.rename(columns={'gaplandfire_val':'counts'})
+        merged['fraction']= merged['counts']/counts['gaplandfire_val'].sum()
+        merged_2 = merged.groupby('Ecosystem_LU')['counts'].sum().sort_values(ascending=False).to_frame()
+        merged_2['fraction'] = merged_2['counts']/merged_2['counts'].sum()
+        #plotting this up
+
+
+        x =(merged_2.index)[:3]
+        y = merged_2['fraction'][:3]
+
+        '''
+        ax[i].bar(x,y)
         ax[i].set_title(nlcd_dic[str(round(key))])
-
+        ax[i].set_xticklabels(x,rotation=90)
+        ax[i].set_ylim(0,1)
+        '''
+        ax.bar(x,y)
+        ax.set_title(nlcd_dic[str(round(key))])
+        ax.set_xticklabels(x)
+        ax.set_ylim(0,1)
+        plt.savefig(work_paths.figures+'Comparing_NLCD_GaplandFire/'+str(round(key))+'.png')
+        plt.close()
         i = i+1
 
     return counts
-    plt.show()
+    #plt.show()
 def gams(df,variables,target):
     var2 = variables
 
@@ -1612,3 +1632,93 @@ def five_year_avg_precip(path):
         df_all = df_all.append(df)
         del df
     return df_all
+
+def SAR_Plot_boxplots(above_df,in_situ,soil_samples,add_samples=False):
+    grouped = above_df.groupby('SAR_Plot')
+    grouped_samples = soil_samples.groupby('SAR_Plot')
+
+    depth_array = ['6','12','20']
+    above_col_depth = ['lbc_0.06_aug','lbc_0.12_aug','lbc_0.2_aug']
+
+    fig,ax = plt.subplots(figsize=(20,10))
+    pos = 0
+    key_array = []
+    sample_range = []
+    for key,group in grouped:
+        key_array.append(key)
+        in_situ_grouped = in_situ.groupby(['SAR_Plot','VWC_Measurement_Depth'])
+        for key1,group1 in in_situ_grouped:
+            if key1[0] == key:
+                print(key1)
+                if str(key1[1]) == '6':
+                    above_col = above_col_depth[0]
+                    colors = ['lightblue', 'salmon']
+                    label = ['6cm','']
+                if str(key1[1]) == '12':
+                    above_col = above_col_depth[1]
+                    colors = ['lightblue', 'salmon']
+                    label = ['12cm','']
+                if str(key1[1]) == '20':
+                    above_col = above_col_depth[2]
+                    colors = ['lightblue', 'salmon']
+                    label = ['20cm','']
+
+
+
+                #plotting boxplots
+                box_insitu= ax.boxplot([group1['VWC'],group[above_col]*100.0],positions=[pos,pos+1],widths=0.5,patch_artist=True)
+
+                #setting colors
+                for patch, color in zip(box_insitu['boxes'], colors):
+                    patch.set_facecolor(color)
+                pos=pos+2
+        if add_samples== True:
+            #grab group of soil_samples
+            sar_sample = grouped_samples.get_group(key)
+
+            #setting labels for range of soil sample
+            sample_range.append(str(sar_sample['Depth_min'].min())+' - '+str(sar_sample['Depth_max'].max()))
+
+            box_sample =ax.boxplot(sar_sample['Volumetric_water_content']*100.0,positions=[pos],widths=0.5,patch_artist=True)
+
+            #setting color
+            colors=['green']
+            for patch, color in zip(box_sample['boxes'], colors):
+                patch.set_facecolor(color)
+            pos=pos+1
+    if add_samples==True:
+        x_ticks = []
+        start = 0.5
+        for i in range(0,len(key_array)):
+            x_ticks.append((np.arange(start,start+5,2)).tolist())
+            x_ticks.append([start+5.5])
+            start=start+7
+        x_ticks_flat = [val for sublist in x_ticks for val in sublist]
+
+        labels = []
+        for j in range(0,len(key_array)):
+            labels.append(['6','12','20',sample_range[j]])
+        labels_flat = [val for sublist in labels for val in sublist]
+        section=7
+        save_name = 'above_vs_hydro/boxplot_in_situ_vs_above_vs_sample.png'
+    else:
+        labels_flat = ['6','12','20']*len(key_array)
+        x_ticks_flat =np.arange(0.5,pos+0.5,2)
+        section =6
+        save_name = 'above_vs_hydro/boxplot_in_situ_vs_above.png'
+
+    #plotting lines and sar plot text
+    vert_lines =np.arange(section-0.5,pos+0.5,section)
+    text_x = np.arange(section/2.0,pos+0.5,section)
+    for j in range(0,len(vert_lines)):
+        plt.axvline(x=vert_lines[j],linestyle='--')
+        plt.text(text_x[j]-0.5,105,key_array[j],ha='center',fontsize=16)
+
+    ax.set_xlim(-0.5, pos-0.5)
+    ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1]], ['In-Situ TDR', 'ABoVE'], loc='lower right',fontsize=16)
+    plt.xticks(x_ticks_flat,labels_flat,ha='center',fontsize=14,rotation=90)
+    plt.xlabel('Depth (cm)',fontsize=20)
+    plt.ylabel('Volumetric Water Content (%)',fontsize=20)
+    plt.yticks(fontsize=14)
+    plt.savefig(work_paths.figures+save_name,dpi=500)
+    plt.close()
