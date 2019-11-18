@@ -1253,7 +1253,7 @@ def r_square_indi(x,y,ind,null_value):
     plt.xlim(df.x.min(),df.x.max())
     plt.show()
     return r_sq
-def r_square_append(x,y,ind,null_value,ax,verbose=False):
+def r_square_append(x,y,ind,null_value,ax,verbose=False,font_size=18):
     #combine x and y into same dataframe
     df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
     #get rid of null value rows (like perfectly flat surface where the DEM has no values)
@@ -1280,8 +1280,8 @@ def r_square_append(x,y,ind,null_value,ax,verbose=False):
     xx = np.linspace(df.x.min(),df.x.max(),100)
 
     ax.plot(xx,model.intercept_ + (model.coef_* xx),'k--')
-    ax.text(0.05,0.85,r'R $^2$ : '+str(round(r_sq,3)),horizontalalignment='left',transform=ax.transAxes)
-    ax.text(0.95,0.85,'W : '+str(round(stat,3)),horizontalalignment='right',transform=ax.transAxes)
+    ax.text(0.15,0.83,r'R $^2$ : '+str(round(r_sq,3)),horizontalalignment='left',transform=ax.transAxes,fontsize=font_size)
+    #ax.text(0.95,0.9,'W : '+str(round(stat,3)),horizontalalignment='right',transform=ax.transAxes,fontsize=font_size)
     ax.set_xlim(df.x.min(),df.x.max())
 
 def func(x, a, b, c):
@@ -1633,7 +1633,7 @@ def five_year_avg_precip(path):
         del df
     return df_all
 
-def SAR_Plot_boxplots(above_df,in_situ,soil_samples,add_samples=False):
+def SAR_Plot_boxplots_depth(above_df,in_situ,soil_samples,add_samples=False):
     grouped = above_df.groupby('SAR_Plot')
     grouped_samples = soil_samples.groupby('SAR_Plot')
 
@@ -1682,7 +1682,7 @@ def SAR_Plot_boxplots(above_df,in_situ,soil_samples,add_samples=False):
             box_sample =ax.boxplot(sar_sample['Volumetric_water_content']*100.0,positions=[pos],widths=0.5,patch_artist=True)
 
             #setting color
-            colors=['green']
+            colors=['palegreen']
             for patch, color in zip(box_sample['boxes'], colors):
                 patch.set_facecolor(color)
             pos=pos+1
@@ -1701,11 +1701,14 @@ def SAR_Plot_boxplots(above_df,in_situ,soil_samples,add_samples=False):
         labels_flat = [val for sublist in labels for val in sublist]
         section=7
         save_name = 'above_vs_hydro/boxplot_in_situ_vs_above_vs_sample.png'
+        ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1],box_sample["boxes"][0]], ['In-Situ TDR', 'ABoVE','Soil Samples'], loc='lower right',fontsize=16)
+
     else:
         labels_flat = ['6','12','20']*len(key_array)
         x_ticks_flat =np.arange(0.5,pos+0.5,2)
         section =6
         save_name = 'above_vs_hydro/boxplot_in_situ_vs_above.png'
+        ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1]], ['In-Situ TDR', 'ABoVE'], loc='lower right',fontsize=16)
 
     #plotting lines and sar plot text
     vert_lines =np.arange(section-0.5,pos+0.5,section)
@@ -1715,10 +1718,135 @@ def SAR_Plot_boxplots(above_df,in_situ,soil_samples,add_samples=False):
         plt.text(text_x[j]-0.5,105,key_array[j],ha='center',fontsize=16)
 
     ax.set_xlim(-0.5, pos-0.5)
-    ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1]], ['In-Situ TDR', 'ABoVE'], loc='lower right',fontsize=16)
+
     plt.xticks(x_ticks_flat,labels_flat,ha='center',fontsize=14,rotation=90)
     plt.xlabel('Depth (cm)',fontsize=20)
     plt.ylabel('Volumetric Water Content (%)',fontsize=20)
     plt.yticks(fontsize=14)
     plt.savefig(work_paths.figures+save_name,dpi=500)
     plt.close()
+
+def SAR_Plot_boxplots_plot(above_df,in_situ,soil_samples,add_samples=False):
+    grouped = above_df.groupby('SAR_Plot')
+    grouped_samples = soil_samples.groupby('SAR_Plot')
+
+    depth_array = ['6','12','20']
+    above_col_depth = ['lbc_0.06_aug','lbc_0.12_aug','lbc_0.2_aug']
+
+    #average column of in_situ
+    above_df['plot_avg'] = above_df[above_col_depth].mean(axis=1)
+
+    fig,ax = plt.subplots(figsize=(20,10))
+    pos = 0
+    key_array = []
+    sample_range = []
+    in_situ_grouped = in_situ.groupby('SAR_Plot')
+
+
+    #for loop through sar plots
+    for key,group in grouped:
+        key_array.append(key)
+        in_situ_sample = in_situ_grouped.get_group(key)
+
+        #plotting boxplots
+        box_insitu= ax.boxplot([in_situ_sample['VWC'],group['plot_avg']*100.0],positions=[pos,pos+1],widths=0.5,patch_artist=True)
+
+        colors = ['lightblue', 'salmon','lightgreen']
+        #setting colors
+        for patch, color in zip(box_insitu['boxes'], colors[:2]):
+            patch.set_facecolor(color)
+        pos=pos+2
+
+        if add_samples== True:
+            #grab group of soil_samples
+            sar_sample = grouped_samples.get_group(key)
+
+            #setting labels for range of soil sample
+            sample_range.append(str(sar_sample['Depth_min'].min())+' - '+str(sar_sample['Depth_max'].max()))
+
+            box_sample =ax.boxplot(sar_sample['Volumetric_water_content']*100.0,positions=[pos],widths=0.5,patch_artist=True)
+
+            #setting color
+            colors=['palegreen']
+            for patch, color in zip(box_sample['boxes'], colors):
+                patch.set_facecolor(color)
+            pos=pos+1
+
+    #setting file names
+    if add_samples==True:
+        save_name = 'above_vs_hydro/boxplot_in_situ_vs_above_vs_sample_plotavg.png'
+        section = 3
+        ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1],box_sample["boxes"][0]], ['In-Situ TDR', 'ABoVE','Soil Samples'], loc='lower right',fontsize=16)
+
+    else:
+        save_name = 'above_vs_hydro/boxplot_in_situ_vs_above_plot_avg.png'
+        section = 2
+        ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1]], ['In-Situ TDR', 'ABoVE'], loc='lower right',fontsize=16)
+    #plotting lines and sar plot text
+    vert_lines =np.arange(section-0.5,pos+0.5,section)
+    text_x = np.arange(section/2.0,pos+0.5,section)
+    for j in range(0,len(vert_lines)):
+        plt.axvline(x=vert_lines[j],linestyle='--')
+        plt.text(text_x[j]-0.5,105,key_array[j],ha='center',fontsize=16)
+
+    ax.set_xlim(-0.5, pos-0.5)
+    ax.set_xticks([])
+    ax.set_xticklabels(['']*pos,rotation=90)
+    #plt.xlabel('Depth (cm)',fontsize=20)
+    plt.ylabel('Volumetric Water Content (%)',fontsize=20)
+    plt.yticks(fontsize=14)
+    plt.savefig(work_paths.figures+save_name,dpi=500)
+    plt.close()
+
+def soil_samples_vs_TDR(df,x,y,path):
+    #use ggplot
+    matplotlib.style.use('ggplot')
+
+    #set up figure
+    fig,ax = plt.subplots(figsize=(10,7))
+
+
+    #add the data
+    plt.scatter(df[x],df[y],color='firebrick',s=75)
+    r_sq = r_square_append(df[x],df[y],df.index,0.0,ax,verbose=True)
+    plt.xlabel('In-Situ VWC(%)',fontsize=18)
+    plt.ylabel('Soil Sample VWC(%)',fontsize=18)
+    plt.title('In-Situ vs. Soil Sample at SAR Plots',fontsize=24)
+    plt.xlim(30,75)
+    plt.ylim(30,75)
+    plt.savefig(path.figures+'above_vs_hydro/lbc_vs_samples_rsq.png',dpi=500)
+    plt.close()
+
+def SM_change(df,vegtype,depth_column):
+    """Function intended to differentiate soil moisture in landcover types this assumes oct-aug.
+
+    Parameters
+    ----------
+    df : Pandas DataFrame
+        Includes all non-NAN values
+    vegtype : string
+        pandas column name
+    depth_column : string
+        pandas column name
+
+    Returns
+    -------
+    plot
+        Description of returned object.
+
+    """
+
+    grouped = df.groupby(vegtype)
+
+    #plotting
+    #grouped[depth_column].plot.bar()
+    #plt.show()
+
+    fig,ax = plt.subplots(figsize=(10,10))
+    pos= 0
+    for key,group in grouped:
+        print(key)
+        plt.errorbar(x=group[vegtype].unique(),y=group[depth_column].mean(),yerr=group[depth_column].std(),capsize=3,ls='',marker='o',label=key)
+
+        pos = pos+1
+    plt.show()

@@ -35,7 +35,9 @@ def main():
     personal_paths = Paths('/Users/juliandann/Documents/LANL/SAR_DATA_AND_Programs/jdann_repo/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
 
     above_all = 'above_final.csv'
-
+    in_situ = 'Z:/AKSeward/2017_SAR/SAR_download_20181003/data/vwc_seward_aug_2017.csv'
+    in_situ = pd.read_csv(in_situ)
+    samples = pd.read_csv('Z:/AKSeward/Data/GIS/Seward_Peninsula/ABoVE_Seward/Soil_Samples/LabAnalysisMeasurements_20190305.csv')
     df = path_file_reader(work_paths,above_all)
 
     #alt_above_topo_comp(df,work_paths)
