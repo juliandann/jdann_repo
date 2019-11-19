@@ -1817,7 +1817,7 @@ def soil_samples_vs_TDR(df,x,y,path):
     plt.savefig(path.figures+'above_vs_hydro/lbc_vs_samples_rsq.png',dpi=500)
     plt.close()
 
-def SM_change(df,vegtype,depth_column):
+def SM_change(df,in_situ,vegtype,depth_column):
     """Function intended to differentiate soil moisture in landcover types this assumes oct-aug.
 
     Parameters
@@ -1844,9 +1844,11 @@ def SM_change(df,vegtype,depth_column):
 
     fig,ax = plt.subplots(figsize=(10,10))
     pos= 0
+    key_array =[]
     for key,group in grouped:
         print(key)
         plt.errorbar(x=group[vegtype].unique(),y=group[depth_column].mean(),yerr=group[depth_column].std(),capsize=3,ls='',marker='o',label=key)
-
+        key_array.append(key)
         pos = pos+1
+    plt.xticks(key_array,rotation=90,fontsize=16)
     plt.show()
