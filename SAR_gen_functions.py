@@ -1745,18 +1745,6 @@ def SAR_Plot_boxplots_plot(above_df,in_situ,soil_samples,add_samples=False):
 
     #for loop through sar plots
     for key,group in grouped:
-        key_array.append(key)
-        in_situ_sample = in_situ_grouped.get_group(key)
-
-        #plotting boxplots
-        box_insitu= ax.boxplot([in_situ_sample['VWC'],group['plot_avg']*100.0],positions=[pos,pos+1],widths=0.5,patch_artist=True)
-
-        colors = ['lightblue', 'salmon','lightgreen']
-        #setting colors
-        for patch, color in zip(box_insitu['boxes'], colors[:2]):
-            patch.set_facecolor(color)
-        pos=pos+2
-
         if add_samples== True:
             #grab group of soil_samples
             sar_sample = grouped_samples.get_group(key)
@@ -1772,11 +1760,25 @@ def SAR_Plot_boxplots_plot(above_df,in_situ,soil_samples,add_samples=False):
                 patch.set_facecolor(color)
             pos=pos+1
 
+        key_array.append(key)
+        in_situ_sample = in_situ_grouped.get_group(key)
+
+        #plotting boxplots
+        box_insitu= ax.boxplot([in_situ_sample['VWC'],group['plot_avg']*100.0],positions=[pos,pos+1],widths=0.5,patch_artist=True)
+
+        colors = ['lightblue', 'salmon','lightgreen']
+        #setting colors
+        for patch, color in zip(box_insitu['boxes'], colors[:2]):
+            patch.set_facecolor(color)
+        pos=pos+2
+
+
+
     #setting file names
     if add_samples==True:
         save_name = 'above_vs_hydro/boxplot_in_situ_vs_above_vs_sample_plotavg.png'
         section = 3
-        ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1],box_sample["boxes"][0]], ['In-Situ TDR', 'ABoVE','Soil Samples'], loc='lower right',fontsize=16)
+        ax.legend([box_sample["boxes"][0],box_insitu["boxes"][0],box_insitu["boxes"][1]], ['Soil Samples','In-Situ TDR', 'ABoVE'], loc='lower right',fontsize=16)
 
     else:
         save_name = 'above_vs_hydro/boxplot_in_situ_vs_above_plot_avg.png'
@@ -1817,7 +1819,7 @@ def soil_samples_vs_TDR(df,x,y,path):
     plt.savefig(path.figures+'above_vs_hydro/lbc_vs_samples_rsq.png',dpi=500)
     plt.close()
 
-def SM_change(df,in_situ,vegtype,depth_column):
+def SM_change(df,in_situ,vegtype,depth_column,path):
     """Function intended to differentiate soil moisture in landcover types this assumes oct-aug.
 
     Parameters
@@ -1836,19 +1838,70 @@ def SM_change(df,in_situ,vegtype,depth_column):
 
     """
 
+    nlcd_dic = {'11':'Open Water','12':'Perrenial Ice/Snow','21':'Developed, Open Space','22': 'Developed, Low Intensity','23':'Developed, Medium Intensity','24':'Developed, High Intensity','31':'Barren Land','41':'Deciduous Forest','42':'Evergreen Forest',
+    '43':'Mixed Forest','51':'DwarfShrub','52':'Shrub/Scrub','71':'Grassland/Herbaceous','72':'Sedge/Herbaceous','74':'Moss','81':'Pasture/Hay','82':'Cultivated Crops','90':'Woody Wetlands','95':'Emergent Herbaceous Wetlands'}
+
     grouped = df.groupby(vegtype)
 
-    #plotting
-    #grouped[depth_column].plot.bar()
-    #plt.show()
-
-    fig,ax = plt.subplots(figsize=(10,10))
-    pos= 0
     key_array =[]
-    for key,group in grouped:
-        print(key)
-        plt.errorbar(x=group[vegtype].unique(),y=group[depth_column].mean(),yerr=group[depth_column].std(),capsize=3,ls='',marker='o',label=key)
-        key_array.append(key)
-        pos = pos+1
-    plt.xticks(key_array,rotation=90,fontsize=16)
-    plt.show()
+    if len(depth_column) == 1:
+
+
+        fig,ax = plt.subplots(figsize=(15,15))
+        pos= 0
+
+
+        for key,group in grouped:
+            plt.bar(x=pos,height=group[depth_column].mean()*100.0,yerr=(group[depth_column].std()*100.0)/np.sqrt(len(group[depth_column])),label=nlcd_dic[str(round(key))])
+            print(nlcd_dic[str(round(key))],len(group[depth_column]))
+            key_array.append(nlcd_dic[str(round(key))])
+            pos = pos+1
+
+    else:
+        fig,ax = plt.subplots(figsize=(15,15))
+        pos= 0
+        key_array =[]
+        w=0.25
+        bar_heights = grouped[depth_column].mean()
+        bar_error =(grouped[depth_column].std()*100.0).div(np.sqrt(grouped[depth_column].size()),axis=0)
+
+        #positions for bars
+        r1 = np.arange(len(grouped[depth_column[0]]))
+        r2 = [x + w for x in r1]
+        r3 = [x + w for x in r2]
+
+        #names for groups
+        for key,group in grouped:
+            key_array.append(nlcd_dic[str(round(key))])
+
+        #plotting
+        plt.bar(r1,bar_heights[depth_column[0]]*100.0,yerr=bar_error[depth_column[0]],width=w,label='6 cm')
+        plt.bar(r2,bar_heights[depth_column[1]]*100.0,yerr=bar_error[depth_column[1]],width=w,label='12 cm')
+        plt.bar(r3,bar_heights[depth_column[2]]*100.0,yerr=bar_error[depth_column[2]],width=w,label='20 cm')
+
+
+    #setting label names
+    plt.xticks(r2,key_array,rotation=90,fontsize=16)
+
+    #making the plot smaller so we can read text
+    plt.subplots_adjust(left=0.1,right=0.95,top=0.95,bottom=0.48)
+
+    #insert horizontal line
+    plt.axhline(y=0.0,c='k',ls='--',lw=2.0)
+
+    #setting up axes
+    plt.ylabel(r'$\Delta$ '+'Volumetric Water Content (Oct-Aug) (%)',fontsize=18)
+    plt.ylim(-2.0,80.0)
+
+    #make legend
+    plt.legend(loc=0,fontsize=20)
+
+    #plot title
+    plt.title('Comparing the (NLCD) with October 2017 Soil Moisture',fontsize=22)
+
+    if len(depth_column) == 1:
+        plt.savefig(path.figures+'Comparing_NLCD_GaplandFire/'+vegtype+'_'+depth_column+'_bar_all.png',dpi=500)
+    else:
+        plt.savefig(path.figures+'Comparing_NLCD_GaplandFire/'+vegtype+'_bar_all_oct_2017.png',dpi=500)
+    plt.close()
+    #plt.show()
