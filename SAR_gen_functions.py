@@ -1280,7 +1280,7 @@ def r_square_append(x,y,ind,null_value,ax,verbose=False,font_size=18):
     xx = np.linspace(df.x.min(),df.x.max(),100)
 
     ax.plot(xx,model.intercept_ + (model.coef_* xx),'k--')
-    ax.text(0.15,0.83,r'R $^2$ : '+str(round(r_sq,3)),horizontalalignment='left',transform=ax.transAxes,fontsize=font_size)
+    ax.text(0.05,0.9,r'R $^2$ : '+str(round(r_sq,3)),horizontalalignment='left',transform=ax.transAxes,fontsize=font_size)
     #ax.text(0.95,0.9,'W : '+str(round(stat,3)),horizontalalignment='right',transform=ax.transAxes,fontsize=font_size)
     ax.set_xlim(df.x.min(),df.x.max())
 
@@ -1538,9 +1538,6 @@ def linear_machine_learning_SM(df,variables,target):
     plt.show()
     '''
     plt.show()
-
-def above_vs_in_situ_boxplots(above,hydro):
-    pass
 
 def comp_landcover(df,land_1,land_2,path,gapland = 'gaplandfire_legend.csv'):
 
@@ -1905,3 +1902,80 @@ def SM_change(df,in_situ,vegtype,depth_column,path):
         plt.savefig(path.figures+'Comparing_NLCD_GaplandFire/'+vegtype+'_bar_all_oct_2017.png',dpi=500)
     plt.close()
     #plt.show()
+
+def alt_sar_avg(above,in_situ,path,r_squared = False):
+    #converting date for in_situ to datatime object
+    in_situ['Date'] = pd.to_datetime(in_situ['Date'],errors='coerce')
+
+    #drop nan values -9999
+    in_situ =  in_situ[in_situ['Thaw_Depth'] != -9999]
+
+    #groupby to make
+    grouped_ab =above.groupby('SAR_Plot')
+    grouped_insitu = in_situ.groupby('SAR_Plot')
+
+    #get sar plot names
+    sar_plots = above['SAR_Plot'].dropna().unique()
+
+    if r_squared == False:
+        fig,ax = plt.subplots(figsize=(20,10))
+        pos = 0
+        key_array = []
+        sample_range = []
+        #scan through to make boxplots of comparison
+        for i in range(0,len(sar_plots)):
+            ab_sar = grouped_ab.get_group(sar_plots[i])
+            in_situ_sar = grouped_insitu.get_group(sar_plots[i])
+
+            #plotting boxplots
+            box_insitu= ax.boxplot([in_situ_sar['Thaw_Depth'],ab_sar['alt_x']],positions=[pos,pos+1],widths=0.5,patch_artist=True)
+
+            colors = ['lightblue', 'salmon']
+            #setting colors
+            for patch, color in zip(box_insitu['boxes'], colors[:2]):
+                patch.set_facecolor(color)
+            pos=pos+2
+
+
+        save_name = 'ALT/boxplot_in_situ_vs_above_ALT_2017.png'
+
+        #legend
+        ax.legend([box_insitu["boxes"][0],box_insitu["boxes"][1]], ['In-Situ TDR', 'ABoVE'], loc='upper right',fontsize=20)
+
+        #plotting lines and sar plot text
+        section = 2
+        vert_lines =np.arange(section-0.5,pos+0.5,section)
+        text_x = np.arange(section/2.0,pos+0.5,section)
+        for j in range(0,len(vert_lines)):
+            plt.axvline(x=vert_lines[j],linestyle='--')
+            #plt.text(text_x[j]-0.5,105,sar_plots[j],ha='center',fontsize=16)
+
+        #setting up the ticks and labels
+        start = 0.5
+        xticks = np.arange(start,pos,2)
+
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(sar_plots,fontsize=16)
+        #plt.xlabel('Depth (cm)',fontsize=20)
+        plt.ylabel('Active Layer Depth (cm)',fontsize=20)
+        plt.yticks(fontsize=16)
+        plt.title('ABoVE vs In-Situ ALT',fontsize=24)
+        plt.savefig(work_paths.figures+save_name,dpi=500)
+        plt.close()
+    else:
+        fig,ax = plt.subplots(figsize=(15,10))
+
+        save_name = 'ALT/sar_plot_r_squared_ALT_2017.png'
+        x = grouped_insitu['Thaw_Depth'].mean().to_list()
+        y = (grouped_ab['alt_x']).mean().to_list()
+        y = [i * 100.0 for i in y]
+        plt.scatter(x,y)
+
+        r_square_append(x,y,np.array(sar_plots),0.0,ax)
+        plt.xlim(20,80)
+        plt.ylim(20,80)
+        plt.xlabel('In-Situ ALT (cm)',fontsize=20)
+        plt.ylabel('ABoVE ALT (cm)',fontsize=20)
+        plt.title('In-Situ vs. ABoVE Active Layer Thickness (ALT)',fontsize=24)
+        plt.savefig(work_paths.figures+save_name,dpi=500)
+        plt.close()

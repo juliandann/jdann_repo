@@ -37,6 +37,7 @@ def main():
     above_all = 'above_final.csv'
     in_situ = 'Z:/AKSeward/2017_SAR/SAR_download_20181003/data/vwc_seward_aug_2017.csv'
     in_situ = pd.read_csv(in_situ)
+    in_situ_alt = pd.read_csv('Z:/AKSeward/2017_SAR/SAR_download_20181003/data/thaw_depth_seward_2017.csv')
     samples = pd.read_csv('Z:/AKSeward/Data/GIS/Seward_Peninsula/ABoVE_Seward/Soil_Samples/LabAnalysisMeasurements_20190305.csv')
     df = path_file_reader(work_paths,above_all)
 
