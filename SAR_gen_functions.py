@@ -633,7 +633,7 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
     VWC_df_late['VWC'] = VWC_df_late['VWC']/100.0
 
     size = [10,10,10]
-    '''
+
     six = 'lbc_0.06_aug'
     twelve = 'lbc_0.12_aug'
     twenty = 'lbc_0.2_aug'
@@ -641,7 +641,7 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
     six = 'engstrom_0.06'
     twelve = 'engstrom_0.12'
     twenty = 'engstrom_0.2'
-
+    '''
     depths =[six,twelve,twenty]
 
 
@@ -652,7 +652,6 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
     site_name = []
     for key_ab,group_ab in group_above:
         if key_ab != np.nan:
-            print(key_ab)
             site_name.append(key_ab)
             avg_group = []
             std_group = []
@@ -666,7 +665,7 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
 
     df_ab = pd.DataFrame({'SAR_Plot':site_name,'six':site_avg[:,0],'twelve':site_avg[:,1],'twenty':site_avg[:,2],'six_err':site_std[:,0],'twelve_err':site_std[:,1],'twenty_err':site_std[:,2]})
 
-    fig,ax=plt.subplots(figsize=(15,10))
+    fig,ax=plt.subplots(figsize=(10,10))
     #colors = {'Teller':'royalblue','Kougarok':'salmon','Council':'seagreen'}
     set = ["#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33", "#A65628" ,"#F781BF", "#999999"]
 
@@ -687,7 +686,7 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
 
                 #average groupby
                 x_data = group_depth['VWC'].mean()
-                xerr = group_depth['VWC'].std()
+                xerr = group_depth['VWC'].std()/np.sqrt(group_depth['VWC'].count())
                 y = df_ab[df_ab['SAR_Plot'] == sarplot]
                 if VWC_depth[i] == 6:
                     y_data = y['six']
@@ -703,9 +702,10 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
                 y_array.append(float(y_data))
                 ax.errorbar(x_data,y_data,xerr=xerr,yerr=yerr,markersize=size[i],color=colors[key],fmt=symbol[i])
                 plt.rcParams['lines.linewidth'] = 0.5
-    print(x_array,'\n',y_array)
+    #print(x_array,'\n',y_array)
     r2 = r2_score(x_array,y_array)
     r2_other = r_square_indi(x_array,y_array,np.arange(0,len(x_array)),0.0)
+    print('Chi-Square',((np.array(y_array)-np.array(x_array))/np.std(np.array(x_array)))**2.0)
     plt.text(0.5,0.95,r'R$^2$ 1:1: '+str(round(r2,3))+ r'   R$^2$: '+str(round(r2_other,3)),horizontalalignment='center',fontsize=18)
 
     plt.xlim(0,1)
@@ -739,10 +739,10 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
     plt.xlabel(xlabel,fontsize=18)
     plt.ylabel(ylabel,fontsize=18)
     plt.title(title,fontsize=22)
-    plt.savefig(path.figures+save_name,dpi=500)
+    #plt.savefig(path.figures+save_name,dpi=500)
     print(path.figures+save_name)
-    #plt.show()
-    plt.close()
+    plt.show()
+    #plt.close()
 
 def weather(met_data,title='Temperature and Precipitation at Kougarok (mile 64)'):
 
