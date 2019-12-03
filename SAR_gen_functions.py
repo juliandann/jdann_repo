@@ -30,6 +30,7 @@ from sklearn.pipeline import make_pipeline
 from os import listdir
 from os.path import isfile, join
 from pygam import LinearGAM
+from sklearn.metrics import mean_squared_error
 
 
 class Paths:
@@ -675,8 +676,14 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
     VWC_depth = [6,12,20]
     x_array = []
     y_array = []
+    key_array = []
+    sar_array =[]
+    depth_array = []
+    xerr_array =[]
+    model_std = []
     for i in range(0,len(VWC_depth)):
         for key,group in grouped:
+            key2 = key
             key = group['Locale'].iloc[0]
             if key !='Barrow':
                 #print(key)
@@ -686,7 +693,7 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
 
                 #average groupby
                 x_data = group_depth['VWC'].mean()
-                xerr = group_depth['VWC'].std()/np.sqrt(group_depth['VWC'].count())
+                xerr = group_depth['VWC'].std()
                 y = df_ab[df_ab['SAR_Plot'] == sarplot]
                 if VWC_depth[i] == 6:
                     y_data = y['six']
@@ -700,14 +707,23 @@ def compare_above_vs_hydrosense(df_hydro,df_above,path,xlabel='',ylabel='',title
 
                 x_array.append(x_data)
                 y_array.append(float(y_data))
+                key_array.append(key)
+                sar_array.append(key2[1])
+                depth_array.append(VWC_depth[i])
+                xerr_array.append(xerr)
+                model_std.append(float(yerr))
                 ax.errorbar(x_data,y_data,xerr=xerr,yerr=yerr,markersize=size[i],color=colors[key],fmt=symbol[i])
                 plt.rcParams['lines.linewidth'] = 0.5
     #print(x_array,'\n',y_array)
     r2 = r2_score(x_array,y_array)
     r2_other = r_square_indi(x_array,y_array,np.arange(0,len(x_array)),0.0)
-    print('Chi-Square',((np.array(y_array)-np.array(x_array))/np.std(np.array(x_array)))**2.0)
-    plt.text(0.5,0.95,r'R$^2$ 1:1: '+str(round(r2,3))+ r'   R$^2$: '+str(round(r2_other,3)),horizontalalignment='center',fontsize=18)
-
+    y_line = r2_other['slope']*np.array(x_array) + r2_other['intercept']
+    print('Chi-Square',sum(((np.array(x_array)-np.array(y_line))**2.0)/(np.array(xerr_array)**2.0))/(len(x_array)-2.0))
+    print('RMSE: ',np.sqrt(mean_squared_error(np.array(x_array),np.array(y_array))))
+    plt.text(0.5,0.95,r'R$^2$ 1:1: '+str(round(r2,3))+ r'   R$^2$: '+str(round(r2_other['r_sq'],3)),horizontalalignment='center',fontsize=18)
+    print(len(key_array),len(x_array),len(y_array))
+    df2 = pd.DataFrame(list(zip(key_array,x_array,y_array,sar_array,depth_array,xerr_array,model_std)),columns=['Site','In_Situ','Model','SAR_Plot','Depth','In_Situ_std','Model_std'])
+    df2.to_csv(path.data_load+'avg_plots.csv')
     plt.xlim(0,1)
     plt.ylim(0,1)
 
@@ -1252,7 +1268,7 @@ def r_square_indi(x,y,ind,null_value):
 
     plt.xlim(df.x.min(),df.x.max())
     plt.show()
-    return r_sq
+    return {'r_sq':r_sq,'intercept':model.intercept_,'slope':model.coef_[0]}
 def r_square_append(x,y,ind,null_value,ax,verbose=False,font_size=18):
     #combine x and y into same dataframe
     df = pd.DataFrame({'x':x, 'y':y,'Index':ind})
@@ -1279,10 +1295,10 @@ def r_square_append(x,y,ind,null_value,ax,verbose=False,font_size=18):
         print('p Value: ',p)
     xx = np.linspace(df.x.min(),df.x.max(),100)
 
-    ax.plot(xx,model.intercept_ + (model.coef_* xx),'k--')
+    ax.plot(xx,model.intercept_ + (model.coef_* xx),'k--',linewidth=2)
     ax.text(0.05,0.9,r'R $^2$ : '+str(round(r_sq,3)),horizontalalignment='left',transform=ax.transAxes,fontsize=font_size)
     #ax.text(0.95,0.9,'W : '+str(round(stat,3)),horizontalalignment='right',transform=ax.transAxes,fontsize=font_size)
-    ax.set_xlim(df.x.min(),df.x.max())
+    #ax.set_xlim(df.x.min(),df.x.max())
 
 def func(x, a, b, c):
     return a * np.exp(-b * x) + c
@@ -1979,3 +1995,68 @@ def alt_sar_avg(above,in_situ,path,r_squared = False):
         plt.title('In-Situ vs. ABoVE Active Layer Thickness (ALT)',fontsize=24)
         plt.savefig(work_paths.figures+save_name,dpi=500)
         plt.close()
+
+def separate_depth_plot_avg(df_avg,path):
+    grouped = df_avg.groupby(['Site','Depth'])
+    fig,ax = plt.subplots(1,3,figsize=(15,5))
+    ax=ax.flatten()
+    print(grouped.describe())
+    #plot Parameters
+    symbol =['^','s','o']
+    set = ["#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33", "#A65628" ,"#F781BF", "#999999"]
+    colors = {'Teller':set[2],'Kougarok':set[1],'Council':set[0]}
+    size = [10,10,10]
+
+    #append
+    x6_array = []
+    y6_array = []
+    x6err_array =[]
+
+    x12_array = []
+    y12_array = []
+    x12err_array =[]
+
+    x20_array = []
+    y20_array = []
+    x20err_array =[]
+    i = 0
+    for key,group in grouped:
+        if key[1] == 6:
+            j = 0
+        if key[1] == 12:
+            j = 1
+        if key[1] == 20:
+            j = 2
+
+        print(key)
+        ax[j].errorbar(group['In_Situ'],group['Model'],xerr=group['In_Situ_std'],yerr=group['Model_std'],markersize=size[j],color=colors[key[0]],fmt=symbol[j])
+        ax[j].set_ylim(0,1)
+        ax[j].set_xlim(0,1)
+        i=i+1
+    grouped_depth = df_avg.groupby('Depth')
+    l=0
+    for key,group in grouped_depth:
+        r2_other = r_square_append(group['In_Situ'],group['Model'],np.arange(0,len(group['In_Situ'])),0.0,ax[l])
+        l=l+1
+
+    #creating custom legends
+    legend_elements = [ Line2D([0], [0], marker='^', color='w', label='6cm',
+                          markerfacecolor='grey', markersize=10,markeredgecolor='k',markeredgewidth=2),
+                      Line2D([0], [0], marker='s', color='w', label='12cm',
+                            markerfacecolor='grey', markersize=15,markeredgecolor='k',markeredgewidth=2),
+                        Line2D([0], [0], marker='o', color='w', label='20cm',
+                            markerfacecolor='grey', markersize=25,markeredgecolor='k',markeredgewidth=2)]
+
+    legend_elements2 = [ Line2D([0], [0], marker='o', color='w', label='Teller',
+                          markerfacecolor=set[2], markersize=15,markeredgecolor='k'),
+                      Line2D([0], [0], marker='o', color='w', label='Kougarok',
+                            markerfacecolor=set[1], markersize=15,markeredgecolor='k'),
+                        Line2D([0], [0], marker='o', color='w', label='Council',
+                            markerfacecolor=set[0], markersize=15,markeredgecolor='k')]
+
+    leg = fig.legend(handles=legend_elements, loc='upper right',prop={'size':16})
+    fig.add_artist(leg)
+
+    fig.legend(handles = legend_elements2, loc='upper left',prop={'size':16})
+    plt.savefig(path.figures+'above_vs_hydro/Indi_depth_SAR_avg.png',dpi=500)
+    plt.close()
