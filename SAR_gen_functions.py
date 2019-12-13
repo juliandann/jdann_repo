@@ -2060,3 +2060,94 @@ def separate_depth_plot_avg(df_avg,path):
     fig.legend(handles = legend_elements2, loc='upper left',prop={'size':16})
     plt.savefig(path.figures+'above_vs_hydro/Indi_depth_SAR_avg.png',dpi=500)
     plt.close()
+
+def average_in_situ_plot_depth_year_comparison(in_situ_2017,in_situ_2019,path):
+    """Function intended to make boxplots for each SAR_Plot at all depths.
+
+    Parameters
+    ----------
+    in_situ : pandas DataFrame
+        Description of parameter `in_situ`.
+    path : type
+        Description of parameter `path`.
+
+    Returns
+    -------
+    plot
+        Description of returned object.
+
+    """
+    groupby = ['SAR_Plot']
+
+    #grouped_2017 = in_situ_2017.groupby(groupby)
+    #grouped_2019 = in_situ_2019.groupby(groupby)
+
+    #add year for groupby usage
+    in_situ_2017['Year'] = 2017
+    in_situ_2019['Year'] = 2019
+
+    #subset each to esaily merge to one dataframe
+    selected = ['Latitude','Longitude','SAR_Plot','VWC']
+    in_situ_2017 = in_situ_2017[selected]
+    in_situ_2019 = in_situ_2019[selected]
+
+    print(in_situ_2017,in_situ_2019)
+    #combine datasets into one
+    df_merge =pd.concat(in_situ_2017,in_situ_2019)
+
+    ax = in_situ.boxplot(by=['SAR_Plot'], column='VWC')
+
+    set = ["#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33", "#A65628" ,"#F781BF", "#999999"]
+    colors = {'Teller':set[2],'Kougarok':set[1],'Council':set[0]}
+
+    '''
+    fig,ax = plt.subplots(figsize=(10,10))
+    pos = 0
+    for key,group in grouped:
+        print(key)
+        if len(groupby) > 1:
+            grouped_depth = group.groupby(groupby[1])
+            for key_2, group_2 in grouped_depth:
+                print(key_2)
+                print(pos)
+                box = ax.boxplot(group_2['VWC'],positions=[pos],widths=0.5,patch_artist=True)
+
+                #setting color
+                colors=['palegreen']
+                for patch, color in zip(box['boxes'], colors):
+                    patch.set_facecolor(color)
+                pos=pos+1
+    '''
+    plt.show()
+
+
+def scatter_2017_vs_2019_comparison(df,path):
+    grouped = df.groupby(['SAR_Plot'])
+
+    x = []
+    xerr = []
+    y = []
+    yerr =[]
+    label = []
+    for key,group in grouped:
+        grouped_2 = group.groupby('Year')
+        print(key)
+        if len(grouped_2) >1:
+            for key_2,group_2 in grouped_2:
+                print(key_2)
+                if group_2['Year'].unique() == 2017:
+                    x.append(group_2['VWC'].mean())
+                    xerr.append(group_2['VWC'].std())
+                else:
+                    y.append(group_2['VWC'].mean())
+                    yerr.append(group_2['VWC'].std())
+            label.append(key)
+    print(x,y,len(x),len(y))
+    plt.errorbar(x,y,marker='*')
+    plt.xlabel('2017 Soil Moisture (%)')
+    plt.ylabel('2019 Soil Moisture (%)')
+    plt.title('Comparing 2017 and 2019 In-Situ Averages')
+    plt.ylim(0,100)
+    plt.xlim(0,100)
+    plt.savefig(path.figures+'In_situ/2017_2019_comparison_scatterplot.png',dpi=500)
+    plt.close()
