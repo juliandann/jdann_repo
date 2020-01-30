@@ -2151,3 +2151,35 @@ def scatter_2017_vs_2019_comparison(df,path):
     plt.xlim(0,100)
     plt.savefig(path.figures+'In_situ/2017_2019_comparison_scatterplot.png',dpi=500)
     plt.close()
+
+def lidar_vs_roughness(data,path,depth='6cm'):
+    '''
+    Datasets used in this files
+    filepath = 'Z:/AKSeward/Data/GIS/Teller/SAR/Lidar_In_situ_SM_analysis/combined_0.1m_may2017_3m_curv.csv'
+    filepath_slope = 'Z:/AKSeward/Data/GIS/Teller/SAR/Lidar_In_situ_SM_analysis/STD_Slope/all_may_2017_slope_0.5mDTM_3mbuffer_Zstats_combined.csv'
+
+    Purpose: Program meant to study the impact of surface roughness on soil moisture.
+
+    '''
+    print(list(data))
+    SAR_plot_names = data['SAR_Plot'].unique()
+    grouped = data.groupby('SAR_Plot')
+    colors = {'TL_SAR_8':'b','TL_SAR_4':'r','TL_SAR_7':'g'}
+    depths = [6,12,20]
+    grouped = data.groupby(['SAR_Plot','VWC_Measurement_Depth'])
+    for depth in depths:
+        title='Surface Roughness vs. VWC at '+str(depth)+'cm'
+        for key,group in grouped:
+            #print(key,key[1])
+            if key[1] == depth:
+                print(key)
+                plt.scatter(group['VWC'],group['STD'],color=colors[key[0]],label=key[0])
+        print('Stop')
+        plt.title(title)
+        plt.xlabel('Volumetric Water Content (%)')
+        plt.ylabel('Standard Deviation of Slope')
+        plt.legend()
+        plt.xlim(0,100)
+        plt.savefig(path.figures+'Surface_Roughness/STD_0.5m_dem_slope_3m_'+str(depth)+'cm.png',dpi=500)
+        plt.clf()
+        plt.close()
