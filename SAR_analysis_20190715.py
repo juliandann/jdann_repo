@@ -33,20 +33,23 @@ def main():
 
     #personal comp paths
     personal_paths = Paths('/Users/juliandann/Documents/LANL/SAR_DATA_AND_Programs/jdann_repo/Figures/','/Users/juliandann/Documents/LANL/qgis/CSV/','/Users/juliandann/Documents/LANL/qgis/CSV/')
-    '''
+
     above_all = 'above_final.csv'
     in_situ = 'Z:/AKSeward/2017_SAR/SAR_download_20181003/data/vwc_seward_aug_2017.csv'
     in_situ = pd.read_csv(in_situ)
+    sr_df = pd.read_csv('Z:/AKSeward/DEM/NGA Arctic/sarplot_STD_Slope_20m_focalstats.csv')
+    flag_variance(in_situ,sr_df)
+    '''
     in_situ_alt = pd.read_csv('Z:/AKSeward/2017_SAR/SAR_download_20181003/data/thaw_depth_seward_2017.csv')
     samples = pd.read_csv('Z:/AKSeward/Data/GIS/Seward_Peninsula/ABoVE_Seward/Soil_Samples/LabAnalysisMeasurements_20190305.csv')
     df = path_file_reader(work_paths,above_all)
-    '''
+
     #alt_above_topo_comp(df,work_paths)
 
     filepath = 'Z:/AKSeward/Data/GIS/Teller/SAR/Lidar_In_situ_SM_analysis/STD_Slope/all_may_2017_slope_0.5mDTM_3mbuffer_Zstats_combined.csv'
     df = pd.read_csv(filepath)
     lidar_vs_roughness(df,work_paths)
-
+    '''
     #uncomment for filepaths on work computer
     TL = 'Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/discrete_6_12_20_TL.csv'
     KG ='Z:/AKSeward/2017_SAR/ABoVE_Soil_Moisture_Products/JBD_Products/discrete_6_12_20_KG.csv'

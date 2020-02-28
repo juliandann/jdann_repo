@@ -1264,10 +1264,10 @@ def r_square_indi(x,y,ind,null_value):
     xx = np.linspace(df.x.min(),df.x.max(),100)
     plt.plot(xx,model.intercept_ + model.coef_* xx,'k--')
 
-    plt.scatter(df.x,df.y)
+    #plt.scatter(df.x,df.y,alpha=0.2)
 
     plt.xlim(df.x.min(),df.x.max())
-    plt.show()
+    #plt.show()
     return {'r_sq':r_sq,'intercept':model.intercept_,'slope':model.coef_[0]}
 def r_square_append(x,y,ind,null_value,ax,verbose=False,font_size=18):
     #combine x and y into same dataframe
@@ -2183,3 +2183,86 @@ def lidar_vs_roughness(data,path,depth='6cm'):
         plt.savefig(path.figures+'Surface_Roughness/STD_0.5m_dem_slope_3m_'+str(depth)+'cm.png',dpi=500)
         plt.clf()
         plt.close()
+
+def label_point(x, y, val, ax):
+    a = pd.concat({'x': x, 'y': y, 'val': val}, axis=1)
+    for i, point in a.iterrows():
+        ax.text(point['x'], point['y'], str(point['val']))
+
+def flag_variance(df,sr_df):
+    '''
+    program to plot the average soil moisture against the standard deviation to discern how much variability is at each place
+    SR_DF = file with surface roughness values
+    '''
+    #merge the two dataframes
+    df = pd.merge(df,sr_df,on='SAR_Plot')
+    #group the data for plotting
+    grouped = df.groupby(['SAR_Plot','VWC_Measurement_Depth','Locale'])
+
+    #average and std
+    avg = grouped['VWC'].mean()
+    std = grouped['VWC'].std()
+    surf_rough = grouped['surf_rough'].mean()
+    #merging dataframes
+    merged = pd.merge(avg,std,on=['SAR_Plot','VWC_Measurement_Depth','Locale'])
+    merged = pd.merge(merged,surf_rough,on=['SAR_Plot','VWC_Measurement_Depth','Locale'])
+    #renaming dataframe
+    merged = merged.rename(columns={'VWC_x':'mean','VWC_y':'std'})
+
+    #reset index for manipulation
+    merged.reset_index(inplace=True)
+
+    #color dictionary
+    colors={'Council':'green','Teller':'blue','Kougarok':'red'}
+    color_map = [colors[site] for site in merged['Locale']]
+    merged['colors'] = color_map
+
+    #size dictionary
+    sizes={'6':'^','12':'s','20':'o'}
+    size_map = [sizes[str(size)] for size in merged['VWC_Measurement_Depth']]
+    merged['mark'] = size_map
+
+    #normalizing surface roughness
+    merged['surf_rough_norm'] = merged['surf_rough']/merged['surf_rough'].max()
+
+    #plotting routine
+    fig,ax = plt.subplots(figsize=(10,10))
+    grouped = merged.groupby(['VWC_Measurement_Depth'])
+    for key,group in grouped:
+        print(key)
+
+        ax.scatter(group['mean'],group['std'],c=group['colors'],s=group['surf_rough_norm']*150.0,marker=group['mark'].iloc[0])
+
+    #label points
+    label_point(merged['mean'],merged['std'],merged['SAR_Plot'],ax)
+
+    plt.xlabel('Volumetric Water Content (%)',fontsize=16)
+    plt.ylabel('Standard Deviation of VWC',fontsize=16)
+
+
+
+
+    #creating custom legends
+    legend_elements = [ Line2D([0], [0], marker='^', color='w', label='6cm',
+                          markerfacecolor='grey', markersize=20,markeredgecolor='k',markeredgewidth=2),
+                      Line2D([0], [0], marker='s', color='w', label='12cm',
+                            markerfacecolor='grey', markersize=20,markeredgecolor='k',markeredgewidth=2),
+                        Line2D([0], [0], marker='o', color='w', label='20cm',
+                            markerfacecolor='grey', markersize=20,markeredgecolor='k',markeredgewidth=2)]
+
+    legend_elements2 = [ Line2D([0], [0], marker='o', color='w', label='Teller',
+                          markerfacecolor='blue', markersize=15,markeredgecolor='k'),
+                      Line2D([0], [0], marker='o', color='w', label='Kougarok',
+                            markerfacecolor='red', markersize=15,markeredgecolor='k'),
+                        Line2D([0], [0], marker='o', color='w', label='Council',
+                            markerfacecolor='green', markersize=15,markeredgecolor='k')]
+
+    leg = fig.legend(handles=legend_elements, loc='upper right',prop={'size':16})
+    fig.add_artist(leg)
+
+    fig.legend(handles = legend_elements2, loc='upper left',prop={'size':16})
+    plt.savefig('Z:/JDann/Documents/Documents/Julian_Python/SAR_programs_20181003/Figures/In_situ/2020_02_18_variance_plots.png',dpi=500)
+    plt.close()
+
+def wavelet_analysis(raster):
+    pass
