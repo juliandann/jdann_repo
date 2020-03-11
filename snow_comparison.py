@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot
+import matplotlib.pyplot as plt
 import h5py
 from osgeo import gdal
 import osr
@@ -36,14 +36,49 @@ def mat_to_dataframe(mat_file,x='',y=''):
             else:
                 var2 = pd.DataFrame(f.get(key).value.T,columns=y,index=x)
                 var2.name = key
-    return x,y
+    return var1,var2
+
+def matOrtho_to_raster(mat_file,x='',y=''):
+    #converts mat_files to raster
+    f = h5py.File(mat_file,'r')
+    keys = [key for key in f.keys()]
+    if (len(x) == 0) and (len(y)==0):
+        for key in keys:
+            #find x or y matrices
+            if ('x' or 'lon') in key:
+                y = pd.Series(f.get(key).value.flatten())
+                print(y)
+            if ('y' or 'lat') in key:
+                x = pd.Series(f.get(key).value.flatten())
+                print(x)
+
+    places = ['x','y','lat','lon']
+    for key in keys:
+
+        if all(x not in key for x in places):
+            print(key)
+            try:
+                var1
+            except NameError:
+                print(y,x)
+                var1 = f.get(key).value
+                var2 = np.empty([3,36720,30259])
+                var2[0] = var1[0].T
+                var2[1] = var1[1].T
+                var2[2] = var1[2].T
+    return var2,x,y
 
 def write_geotiff(raster, gt, wkt, outputpath, dtype=gdal.GDT_Float32, options=['COMPRESS=LZW'], color_table=0, nbands=1, nodata=False):
     '''
     function from Jon Schwenk to convert to a geotif
     '''
-    width = np.shape(raster)[1]
-    height = np.shape(raster)[0]
+    if nbands==3:
+        width = np.shape(raster[0])[1]
+        height = np.shape(raster[0])[0]
+
+    else:
+        width = np.shape(raster)[1]
+        height = np.shape(raster)[0]
     print(width,height)
 
 
@@ -54,11 +89,20 @@ def write_geotiff(raster, gt, wkt, outputpath, dtype=gdal.GDT_Float32, options=[
     else:
         dest = driver.Create(outputpath, width, height, nbands, dtype)
 
-    # Write output raster
-    if color_table != 0:
-        dest.GetRasterBand(1).SetColorTable(color_table)
 
-    dest.GetRasterBand(1).WriteArray(raster)
+    #writing output raster
+    if nbands ==3:
+        dest.GetRasterBand(1).WriteArray(raster[0])
+        dest.GetRasterBand(2).WriteArray(raster[1])
+        dest.GetRasterBand(3).WriteArray(raster[2])
+        if color_table != 0:
+            dest.GetRasterBand(1).SetColorTable(color_table)
+            dest.GetRasterBand(2).SetColorTable(color_table)
+            dest.GetRasterBand(3).SetColorTable(color_table)
+    else:
+        if color_table != 0:
+            dest.GetRasterBand(1).SetColorTable(color_table)
+        dest.GetRasterBand(1).WriteArray(raster)
 
     if nodata is not False:
         dest.GetRasterBand(1).SetNoDataValue(nodata)
@@ -88,9 +132,24 @@ def get_geotransform(raster):
     gt = ([x_min,round(pixelwidth,1),0,y_max,0,round(pixelheight,1)])
     print(gt)
     return gt
-def rsquare_snow(df):
+def get_geotransform_xy(x,y):
+
+    y_min = y.min()
+    y_max = y.max()
+
+    x_min = x.min()
+    x_max = x.max()
+
+    pixelwidth = x[1] - x[0]
+    pixelheight = y[1] - y[0]
+    print(pixelwidth,pixelheight)
+
+    gt = ([y_min,abs(round(pixelwidth,1)),0,x_max,0,-1.0*round(pixelheight,1)])
+    print(gt)
+    return gt
+def rsquare_snow(df,x,y):
     #plot a one to one line against values and get an R_squared
-    r2 = r_square_indi(df['Corrected_Depth'],df['UAS_MEAN'],df.index,0.0)
+    r2 = r_square_indi(df[x],df[y],df.index,0.0)
     return r2
 
 def clean_mag(df,x,y):
@@ -193,12 +252,46 @@ def binned_columns(x,y,bins=np.arange(0.0,115,5),xlabel='',ylabel='',title=''):
     plt.savefig('Z:/AKSeward/Data/GIS/Teller/2019_Snow/Correlations/shrubheight_vs_depth_in_situ.png',dpi=500)
     plt.close()
     #plt.show()
+
+def plotting_comp_range(df,x,y,x_min,x_max):
+    snow = clean_mag(df,x,y)
+    snow_inrange = snow[(snow[y]<=snow[x_max]) & (snow[y]>=snow[x_min])]
+    snow_outrange = snow[(snow[y]>snow[x_max]) | (snow[y]<snow[x_min])]
+    print(snow[[x,x_min,x_max]])
+    r2 = rsquare_snow(snow,x,y)
+    r2_1 = r_squared_1_1_line(snow[x],snow[y])
+    print(r2_1)
+    plt.scatter(snow_inrange[x],snow_inrange[y],c='b',alpha=0.8,label='In Range')
+    plt.scatter(snow_outrange[x],snow_outrange[y],c='r',alpha=0.2,label='Out of Range')
+    plt.title('2019 Snow Comparison UAS DTM')
+    plt.xlabel('Snow Depth from UAS (3m buffer avg) (cm)')
+    plt.ylabel('In-Situ Snow Depth (cm)')
+    plt.text(0.15,0.85,r'R $^2$: '+str(round(r2['r_sq'],3)),horizontalalignment='left',transform=plt.gcf().transFigure)
+    plt.text(0.15,0.82,'Slope: '+str(round(r2['slope'],3)),horizontalalignment='left',transform=plt.gcf().transFigure)
+    plt.text(0.85,0.85,r'R $^2$ 1:1 : '+str(round(r2_1,3)),horizontalalignment='right',transform=plt.gcf().transFigure)
+    xy = np.arange(0,250,1)
+    plt.plot(xy,xy,'r--')
+    plt.xlim(0,2.50)
+    plt.ylim(0,2.50)
+    plt.legend(loc=4)
+
+    plt.savefig('Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/Figures/2019_comp_3m_buffer_range_UASDTM.png',dpi=500)
+    plt.close()
+    #plt.show()
 def main():
+
     #raster_subsample_correlation
     snow = "Z:/AKSeward/Data/GIS/Teller/2019_Snow/Correlations/imagesnoD_clipped.tif"
     shrub_height = "Z:/AKSeward/Data/GIS/Teller/2019_Snow/Correlations/shrub_height_clipped.tif"
     shrub_density ="Z:/AKSeward/Data/GIS/Teller/2019_Snow/Correlations/shrub_density_clipped.tif"
     shrubs = pd.read_csv('Z:/AKSeward/Data/GIS/Teller/2019_Snow/snow_shrub_height_merge.csv')
+    ortho = 'Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/Original/OrthoJune2019.mat'
+    var,x,y = matOrtho_to_raster(ortho)
+    gt = get_geotransform_xy(x,y)
+    wkt = 'PROJCS["WGS 84 / UTM zone 3N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-165],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],AUTHORITY["EPSG","32603"],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
+    write_geotiff(var,gt,wkt,'Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/ortho_2019_v2.tif',nbands=3)
+
+    '''
     #raster_correlation(snow,shrub_density,xlabel='Shrub Density (counts/pixel)',ylabel='Average Snow Depth (m)',title='Impact of Shrub Density on Snow Depth')
     print(shrubs['shrub_height'])
     #binned_columns(shrubs['shrub_height'],shrubs['Corrected_Depth']/100.0,bins=np.arange(0.0,5,0.25),xlabel='Shrub Height (m)',ylabel='In-Situ Snow Depth (m)',title='Impact of Shrub Height on Snow Depth')
@@ -213,42 +306,19 @@ def main():
     wkt = 'PROJCS["WGS 84 / UTM zone 3N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-165],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],AUTHORITY["EPSG","32603"],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
     #write_geotiff(imagesno.values,gt_imagesno,wkt,'Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/imagesno_nans.tif')
     write_geotiff(imagesnoD.values,gt_imagesno,wkt,'Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/imagesnoD_nans.tif')
-    '''
+
 
     snow_path = 'Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/2019_snow_depth_comp.csv'
-    snow_buffer = 'Z:/AKSeward/Data/GIS/Teller/2019_Snow/valid_only/2019_snow_comp.csv'
+    snow_buffer = 'Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/JBD_Products/2019_snow_comparison_wlidar.csv'
     snow = pd.read_csv(snow_buffer)
+
 
     #grab only the values that do not have shrub heights
     ind = pd.merge(snow['Counter'],shrubs['Counter'],on='Counter')
     false_ind = snow['Counter'][~snow.Counter.isin(ind.values.flatten())]
     snow = snow[snow.Counter.isin(false_ind.values.flatten())]
 
-    snow = clean_mag(snow,'Corrected_Depth','UAS_MEAN')
-    snow_inrange = snow[(snow['Corrected_Depth']<=snow['UAS_MAX']) & (snow['Corrected_Depth']>=snow['UAS_MIN'])]
-    snow_outrange = snow[(snow['Corrected_Depth']>snow['UAS_MAX']) | (snow['Corrected_Depth']<snow['UAS_MIN'])]
-    print(snow['Corrected_Depth'],snow['UAS_MEAN'])
-    r2 = rsquare_snow(snow)
-    r2_1 = r_squared_1_1_line(snow['Corrected_Depth'],snow['UAS_MEAN'])
-    print(r2_1)
-    plt.scatter(snow_inrange['Corrected_Depth'],snow_inrange['UAS_MEAN'],c='b',alpha=0.8,label='In Range')
-    plt.scatter(snow_outrange['Corrected_Depth'],snow_outrange['UAS_MEAN'],c='r',alpha=0.2,label='Out of Range')
-    plt.title('2019 Snow Comparison')
-    plt.xlabel('Snow Depth from UAS (3m buffer avg) (cm)')
-    plt.ylabel('In-Situ Snow Depth (cm)')
-    plt.text(0.15,0.85,r'R $^2$: '+str(round(r2['r_sq'],3)),horizontalalignment='left',transform=plt.gcf().transFigure)
-    plt.text(0.15,0.82,'Slope: '+str(round(r2['slope'],3)),horizontalalignment='left',transform=plt.gcf().transFigure)
-    plt.text(0.85,0.85,r'R $^2$ 1:1 : '+str(round(r2_1,3)),horizontalalignment='right',transform=plt.gcf().transFigure)
-    xy = np.arange(0,250,1)
-    plt.plot(xy,xy,'r--')
-    plt.xlim(0,2.50)
-    plt.ylim(0,2.50)
-    plt.legend(loc=4)
-
-    plt.savefig('Z:/AKSeward/EOW_Snow/2020_01_10_Baptiste_UAS_snow_cover/Figures/2019_comp_3m_buffer_range_noshrub.png',dpi=500)
-    plt.close()
-    #plt.show()
-    #ax.text(0.05,0.9,r'R $^2$ : '+str(round(r_sq,3)),horizontalalignment='left',transform=ax.transAxes,fontsize=font_size
+    plotting_comp_range(snow,'UAS_MEAN', 'Corrected_Depth','UAS_MIN','UAS_MAX')
     '''
 if __name__ == "__main__":
     main()
